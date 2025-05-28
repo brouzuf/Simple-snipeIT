@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "simple-snipeit"
+version = "0.1.0"
+description = ""
+authors = ["Brouzuf <brouzuf@gmail.com>"]
+readme = "README.md"
+packages = [{include = "simple_snipeit"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.2.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
