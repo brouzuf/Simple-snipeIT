@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Asset List</title>
+</head>
+<body>
+    <h1>Assets</h1>
+    {% if assets and assets.rows %}
+        <ul>
+        {% for asset in assets.rows %}
+            <li>{{ asset.name }} (Tag: {{ asset.asset_tag }}) - {{ asset.model.name }}</li>
+        {% empty %}
+            <li>No assets found or error fetching assets.</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No assets found or error fetching assets.</p>
+    {% endif %}
+    <p><a href="{% url 'logout' %}">Logout</a></p>
+</body>
+</html>

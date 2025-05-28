@@ -9,6 +9,7 @@ packages = [{include = "simple_snipeit"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 django = "^5.2.1"
+requests = "^2.31.0" # Added requests
 
 
 [build-system]

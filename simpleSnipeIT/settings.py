@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'userCheckIO.apps.UsercheckioConfig', # Added userCheckIO app
 ]
 
 MIDDLEWARE = [
@@ -120,3 +121,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Snipe-IT API configuration
+SNIPEIT_API_URL = "https://your-snipeit-instance/api/v1/"
+SNIPEIT_API_TOKEN = "YOUR_API_TOKEN"
