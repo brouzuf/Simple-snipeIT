@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login</title>
+</head>
+<body>
+    <h2>Login to Snipe-IT</h2>
+
+    {% if error_message %}
+        <p style="color: red;">{{ error_message }}</p>
+    {% endif %}
+
+    <form method="post">
+        {% csrf_token %}
+        <!-- Since the form is currently just a trigger, we just need a submit button -->
+        <button type="submit">Login with Snipe-IT</button>
+    </form>
+    
+    <p><a href="{% url 'index' %}">Back to Home</a></p>
+</body>
+</html>
