@@ -3,11 +3,13 @@
 {% block title %}Welcome - Snipe-IT Asset Checker{% endblock %}
 
 {% block content %}
-    <h1>Welcome to the Simple Snipe-IT Asset Checker</h1>
-
+    <h1 class="title">Welcome to the Simple Snipe-IT Asset Checker</h1>
+    <p class="subtitle"></p>
     <form method="GET" action="{% url 'user_asset_view' %}">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <button type="submit">View My Assets</button>
+        <div class="control">
+            {% csrf_token %}
+            {{ form.as_div }}
+            <button type="submit" class="button is-large is-primary">View My Assets</button>
+        </div>
     </form>
 {% endblock %}
