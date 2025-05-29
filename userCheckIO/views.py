@@ -1,8 +1,7 @@
 from django.shortcuts import render, redirect
 from django.urls import reverse # Added for named URL reversal with query params
 from django.conf import settings
-import requests
-import json
+import requests, json
 from django.http import HttpResponse # Added for potential intermediate use
 from django.contrib import messages # Added for Django messaging framework
 from .forms import LoginForm
