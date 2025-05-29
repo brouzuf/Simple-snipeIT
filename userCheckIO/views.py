@@ -4,7 +4,7 @@ from django.conf import settings
 import requests, json
 from django.http import HttpResponse # Added for potential intermediate use
 from django.contrib import messages # Added for Django messaging framework
-from .forms import LoginForm
+from .forms import LoginForm, EmployeeNumberForm
 
 # Replace with your Snipe-IT API URL and token
 API_URL = settings.SNIPEIT_API_URL
@@ -51,7 +51,8 @@ def login_view(request):
 def index(request):
     # Messages are now handled by Django's messaging framework
     # and displayed in the template. No specific context needed here for them.
-    return render(request, 'index.html')
+    form = EmployeeNumberForm()
+    return render(request, 'index.html', {'form': form})
 
 def get_user_by_employee_number(employee_number_str):
     """
@@ -107,10 +108,6 @@ def asset_list(request):
     return render(request, 'asset_list.html', {'assets': assets})
 
 def user_asset_view(request):
-    if not request.session.get('snipeit_authenticated'):
-        login_url_with_next = f"{reverse('login')}?next={request.get_full_path()}"
-        return redirect(login_url_with_next)
-
     employee_number = request.GET.get('employee_number')
     if not employee_number:
         messages.error(request, 'Please provide an employee number.')
@@ -189,7 +186,7 @@ def logout_view(request):
 
 def assign_asset_to_user_view(request, user_id):
     if not request.session.get('snipeit_authenticated'):
-        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
+        return redirect(f"{reverse('admin_login')}?next={request.get_full_path()}")
 
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
@@ -272,7 +269,7 @@ def assign_asset_to_user_view(request, user_id):
 
 def unassign_asset_from_user_view(request, asset_id):
     if not request.session.get('snipeit_authenticated'):
-        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
+        return redirect(f"{reverse('admin_login')}?next={request.get_full_path()}")
 
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
