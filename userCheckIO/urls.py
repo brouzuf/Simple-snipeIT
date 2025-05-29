@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     path("", views.index, name="index"),
-    path("login/", views.login_view, name="login"),
+    path("admin_login/", views.login_view, name="admin_login"),
     path("logout/", views.logout_view, name="logout"), 
     path("user_assets/", views.user_asset_view, name="user_asset_view"),
     # URLs for assign/unassign actions

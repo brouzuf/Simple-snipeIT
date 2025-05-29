@@ -1,27 +1,19 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Login</title>
-</head>
-<body>
-    {% if messages %}
-      <ul class="messages" style="list-style-type: none; padding: 0;">
-        {% for message in messages %}
-          <li{% if message.tags %} class="{{ message.tags }}"{% endif %} style="padding: 10px; margin-bottom: 10px; border-radius: 5px; color: #fff; {% if message.tags == 'success' %}background-color: #28a745;{% elif message.tags == 'error' %}background-color: #dc3545;{% elif message.tags == 'info' %}background-color: #17a2b8;{% else %}background-color: #007bff;{% endif %}">
-            {{ message }}
-          </li>
-        {% endfor %}
-      </ul>
-    {% endif %}
+{% extends 'base.html' %}
 
+{% block title %}Admin Login - Snipe-IT Asset Checker{% endblock %}
+
+{% block content %}
     <h2>Login to Snipe-IT</h2>
 
     <form method="post">
         {% csrf_token %}
-        <!-- Since the form is currently just a trigger, we just need a submit button -->
+        {# This form currently just triggers the login mechanism in views.py #}
+        {# The actual 'form' fields aren't displayed if using a simple button trigger #}
+        {# If you passed a Django form instance named 'form' from login_view, you could render it: #}
+        {# {{ form.as_p }} #}
         <button type="submit">Login with Snipe-IT</button>
     </form>
     
-    <p><a href="{% url 'index' %}">Back to Home</a></p>
-</body>
-</html>
+    {# The "Back to Home" link is now part of base.html's menu, so it can be removed from here if not specifically needed #}
+    {# <p><a href="{% url 'index' %}">Back to Home</a></p> #}
+{% endblock %}
