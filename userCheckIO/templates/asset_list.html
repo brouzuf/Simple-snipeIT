@@ -1,21 +1,91 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Asset List</title>
+    <title>Assets for {{ user.name|default:user.username|default:'User' }} ({{ employee_number }})</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        nav { margin-bottom: 20px; }
+        nav a { margin-right: 15px; }
+        .container { margin-top: 20px; }
+        .filter-form { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;}
+        .filter-form label { margin-right: 10px; }
+        .filter-form select, .filter-form button { padding: 8px 12px; margin-right: 10px; border-radius: 3px; border: 1px solid #ccc; }
+        .filter-form button { background-color: #007bff; color: white; cursor: pointer; }
+        .asset-list { list-style-type: none; padding: 0; }
+        .asset-list li { background-color: #fff; border: 1px solid #ddd; margin-bottom: 10px; padding: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .asset-details { flex-grow: 1; }
+        .asset-actions a { margin-left: 10px; text-decoration: none; padding: 5px 10px; border-radius: 3px; }
+        .unassign-btn { background-color: #dc3545; color: white; }
+        .assign-new-btn { display: inline-block; background-color: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+        .message { padding: 10px; margin-bottom: 15px; border-radius: 5px; }
+        .error-message { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info-message { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
 </head>
 <body>
-    <h1>Assets</h1>
-    {% if assets and assets.rows %}
-        <ul>
-        {% for asset in assets.rows %}
-            <li>{{ asset.name }} (Tag: {{ asset.asset_tag }}) - {{ asset.model.name }}</li>
-        {% empty %}
-            <li>No assets found or error fetching assets.</li>
+    <nav>
+        <a href="{% url 'index' %}">Back to Home</a>
+        <a href="{% url 'logout' %}">Logout</a>
+    </nav>
+
+    {% if messages %}
+      <ul class="messages" style="list-style-type: none; padding: 0;">
+        {% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %} style="padding: 10px; margin-bottom: 10px; border-radius: 5px; color: #fff; {% if message.tags == 'success' %}background-color: #28a745;{% elif message.tags == 'error' %}background-color: #dc3545;{% elif message.tags == 'info' %}background-color: #17a2b8;{% else %}background-color: #007bff;{% endif %}">
+            {{ message }}
+          </li>
         {% endfor %}
-        </ul>
-    {% else %}
-        <p>No assets found or error fetching assets.</p>
+      </ul>
     {% endif %}
-    <p><a href="{% url 'logout' %}">Logout</a></p>
+
+    <h1>Assets for {{ user.name|default:user.username|default:'User' }} (Employee Number: {{ employee_number }})</h1>
+
+    <div class="filter-form">
+        <form method="GET" action="{% url 'user_asset_view' %}">
+            <input type="hidden" name="employee_number" value="{{ employee_number }}">
+            <label for="category_id">Filter by Category:</label>
+            <select name="category_id" id="category_id">
+                <option value="">All Categories</option>
+                {% for category in categories %}
+                    <option value="{{ category.id }}" {% if category.id|stringformat:"s" == selected_category_id|stringformat:"s" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="submit">Filter</button>
+        </form>
+    </div>
+
+    <div class="container">
+        {% if assets %}
+            <ul class="asset-list">
+            {% for asset in assets %}
+                <li>
+                    <div class="asset-details">
+                        <strong>{{ asset.name|default:"N/A" }}</strong> (Tag: {{ asset.asset_tag|default:"N/A" }})<br>
+                        Model: {{ asset.model.name|default:"N/A" }}<br>
+                        Category: {{ asset.category.name|default:"N/A" }}
+                    </div>
+                    <div class="asset-actions">
+                        {% if asset.id %}
+                        <a href="{% url 'unassign_asset' asset_id=asset.id %}" class="unassign-btn">Unassign</a>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            {% if selected_category_id %}
+                <p class="message info-message">No assets found in this category for this user.</p>
+            {% else %}
+                <p class="message info-message">No assets currently assigned to this user.</p>
+            {% endif %}
+        {% endif %}
+
+        {% if user.id %}
+        <a href="{% url 'assign_asset' user_id=user.id %}" class="assign-new-btn">Assign New Asset</a>
+        {% endif %}
+    </div>
+
 </body>
 </html>

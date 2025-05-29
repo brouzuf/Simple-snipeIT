@@ -4,13 +4,27 @@
     <title>Welcome</title>
 </head>
 <body>
+    {% if messages %}
+      <ul class="messages" style="list-style-type: none; padding: 0;">
+        {% for message in messages %}
+          <li{% if message.tags %} class="{{ message.tags }}"{% endif %} style="padding: 10px; margin-bottom: 10px; border-radius: 5px; color: #fff; {% if message.tags == 'success' %}background-color: #28a745;{% elif message.tags == 'error' %}background-color: #dc3545;{% else %}background-color: #007bff;{% endif %}">
+            {{ message }}
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+
     <h1>Welcome to the Simple Snipe-IT Asset Checker</h1>
 
     {% if request.session.snipeit_authenticated %}
         <p>You are logged in.</p>
+        <form method="GET" action="{% url 'user_asset_view' %}">
+            <label for="employee_number">Enter Your Employee Number</label>
+            <input type="text" id="employee_number" name="employee_number">
+            <button type="submit">View My Assets</button>
+        </form>
         <nav>
             <ul>
-                <li><a href="{% url 'asset_list' %}">View Assets</a></li>
                 <li><a href="{% url 'logout' %}">Logout</a></li>
             </ul>
         </nav>
