@@ -10,6 +10,7 @@ packages = [{include = "simple_snipeit"}]
 python = "^3.11"
 django = "^5.2.1"
 requests = "^2.31.0" # Added requests
+django-environ = "^0.12.0"
 
 
 [build-system]
