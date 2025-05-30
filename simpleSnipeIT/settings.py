@@ -135,3 +135,4 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Snipe-IT API configuration
 SNIPEIT_API_URL = env('SNIPEIT_API_URL')
 SNIPEIT_API_TOKEN = env('SNIPEIT_API_TOKEN')
+SNIPEIT_ADMIN_GROUP_ID = env('SNIPEIT_ADMIN_GROUP_ID', default=None)
