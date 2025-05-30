@@ -1,4 +1,5 @@
 from django import forms
+from django.utils.translation import gettext_lazy as _
 
 class LoginForm(forms.Form):
     # Using a generic username field; Snipe-IT might use email or username.
@@ -16,10 +17,13 @@ class LoginForm(forms.Form):
 
 class EmployeeNumberForm(forms.Form):
     employee_number = forms.CharField(
-        label="Enter Your Employee Number", 
-        max_length=100, 
+        label=_('Enter Your Employee Number'),
+        max_length=20,
         required=True,
-        widget=forms.TextInput(attrs={'placeholder': 'Employee Number'})
+        widget=forms.TextInput(attrs={'class': 'input is-large is-primary',
+                                      'title': _('Employee Number'),
+                                      'size': '20',
+                                      'placeholder': 'Employee Number'})
     )
 
 class CategoryFilterForm(forms.Form):

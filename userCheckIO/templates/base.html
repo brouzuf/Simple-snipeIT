@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Simple Snipe-IT Checker{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.4/css/bulma.min.css">
     <style>
         body { font-family: sans-serif; margin: 0; padding: 0; }
         .menu { background-color: #333; overflow: hidden; }
@@ -17,21 +19,52 @@
     </style>
 </head>
 <body>
-    <nav class="menu">
-        <a href="{% url 'index' %}">Home</a>
-        <a href="{% url 'admin_login' %}">Admin Login</a> 
-        {# Later we might change 'login' to a more specific admin login URL if needed #}
+    <nav class="navbar" role="navigation" aria-label="main navigation">
+        <div class="navbar-brand">
+            <a class="navbar-item" href="{% url 'index' %}">
+                <img src="" alt="">
+            </a>
+            <a role="button" class="navbar-burger" aria-label="menu" aria-expanded="false" data-target="navbarBasic">
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+                <span aria-hidden="true"></span>
+            </a>
+        </div>
+        <div id="navbarBasic" class="navbar-menu">
+            <div class="navbar-start">
+                <a href="{% url 'index' %}" class="navbar-item">
+                    Home
+                </a>
+            </div>
+            <div class="navbar-end">
+                <a href="{% url 'admin_login' %}" class="navbar-item">
+                    Admin Login
+                </a>
+                {# Later we might change 'login' to a more specific admin login URL if needed #}
+            </div>
+        </div>
     </nav>
-
-    <div class="content">
-        {% if messages %}
-          <ul class="messages">
-            {% for message in messages %}
-              <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-            {% endfor %}
-          </ul>
-        {% endif %}
-        {% block content %}{% endblock %}
-    </div>
+    <section class="section">
+        <div class="container">
+            {% if messages %}
+            <ul class="messages">
+                {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </div>
+    </section>
+    <footer class="footer">
+        <div class="content has-text-centered">
+            <p>
+                <strong>Simple-SnipeIT</strong> by <a href="https://www.brouzuf.tk">Sylvain Prado</a>.
+                The <a href="https://github.com/brouzuf/Simple-snipeIT" target="_blank">source code</a> is licensed
+                <a href="https://www.gnu.org/licenses/agpl-3.0.en.html" target="_blank">AGPL v3</a>.
+            </p>
+        </div>
+    </footer>
 </body>
 </html>

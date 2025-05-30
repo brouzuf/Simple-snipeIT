@@ -10,24 +10,31 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
-import os
+import os, environ
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+env = environ.Env(
+    # set casting, default value
+    DEBUG=(bool, False)
+)
+
+# Take environment variables from .env file
+environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-m9*aie%8j&=7yykp7n40vd5@na_mika3sq&9n(j)5vz((h%c$z'
-#SECRET_KEY = os.environ.get('SECRET_KEY')
+#SECRET_KEY = env('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = bool(int(os.environ.get('DJANGO_DEBUG', 0)))
+DEBUG = env('DJANGO_DEBUG')
 
-ALLOWED_HOSTS = []
+#ALLOWED_HOSTS = ['localhost', '127.0.0.1']
 #ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS").split(" ")
 #CSRF_TRUSTED_ORIGINS = [""]
 
@@ -126,5 +133,5 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Snipe-IT API configuration
-SNIPEIT_API_URL = os.environ.get('SNIPEIT_API_URL', 'https://your-snipeit-instance/api/v1/')
-SNIPEIT_API_TOKEN = os.environ.get('SNIPEIT_API_TOKEN', 'YOUR_API_TOKEN')
+SNIPEIT_API_URL = env('SNIPEIT_API_URL')
+SNIPEIT_API_TOKEN = env('SNIPEIT_API_TOKEN')

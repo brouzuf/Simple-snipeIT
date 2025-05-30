@@ -19,7 +19,7 @@ def login_view(request):
         # Let's try to fetch user details for the current token holder.
         # (Using /users endpoint as an example, Snipe-IT might have a /me endpoint)
         headers = {
-            "Authorization": f"Bearer {settings.SNIPEIT_API_TOKEN}",
+            "Authorization": f"Bearer {API_TOKEN}",
             "Accept": "application/json",
         }
         # Attempting to get the first user as a test. A /hardware endpoint or similar could also be used.
@@ -30,7 +30,7 @@ def login_view(request):
             if response.status_code == 200:
                 # Authentication successful
                 request.session['snipeit_authenticated'] = True
-                request.session['snipeit_api_token'] = settings.SNIPEIT_API_TOKEN # Store token if needed for other requests
+                request.session['snipeit_api_token'] = API_TOKEN # Store token if needed for other requests
                 messages.success(request, "Login successful.") # Optional: Add a success message
                 return redirect('index') # Redirect to the main index page
             else:
@@ -52,6 +52,7 @@ def index(request):
     # Messages are now handled by Django's messaging framework
     # and displayed in the template. No specific context needed here for them.
     form = EmployeeNumberForm()
+
     return render(request, 'index.html', {'form': form})
 
 def get_user_by_employee_number(employee_number_str):
@@ -109,6 +110,7 @@ def get_user_by_employee_number(employee_number_str):
             return user # Exact match found
             
     return None # No match found after checking all users
+
 
 def get_assets():
     headers = {
