@@ -56,36 +56,59 @@ def index(request):
 
 def get_user_by_employee_number(employee_number_str):
     """
-    Fetches a user from Snipe-IT API by their employee number.
+    Fetches a user from Snipe-IT API by their employee number using pagination.
     Returns the user dictionary if an exact match is found, otherwise None.
     """
     if not employee_number_str:
         return None
 
+    all_users = []
+    limit = 50  # Adjust limit as needed, Snipe-IT default is 50, max might be higher
+    offset = 0
+    total_users = -1 # Initialize with a value that ensures the loop runs at least once
+
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
     }
-    search_url = f"{API_URL}/users?search={employee_number_str}"
 
-    try:
-        response = requests.get(search_url, headers=headers, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            rows = data.get('rows', [])
-            for user in rows:
-                # Ensure case-insensitive or exact match as per Snipe-IT's behavior if necessary
-                # Assuming employee_number field in Snipe-IT is reliable for exact match.
-                if user.get('employee_number') == employee_number_str:
-                    return user # Return the first exact match
-            return None # No exact match found
-        else:
-            # Log error or handle specific status codes if needed
-            print(f"Error fetching user: API returned status {response.status_code}")
-            return None
-    except requests.exceptions.RequestException as e:
-        print(f"RequestException while fetching user: {e}")
-        return None
+    while True:
+        # Construct URL with limit and offset for pagination
+        paginated_url = f"{API_URL}/users?limit={limit}&offset={offset}"
+        
+        try:
+            response = requests.get(paginated_url, headers=headers, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                current_page_users = data.get('rows', [])
+                
+                if not current_page_users and total_users == -1: # No users on first fetch
+                    print(f"No users found at all from API: {paginated_url}")
+                    return None
+
+                all_users.extend(current_page_users)
+                
+                if total_users == -1: # First successful fetch
+                    total_users = data.get('total', 0)
+
+                if not current_page_users or len(all_users) >= total_users:
+                    # No more users on the current page or all users fetched
+                    break 
+                
+                offset += limit # Prepare for the next page
+            else:
+                print(f"Error fetching users (page offset {offset}): API returned status {response.status_code} - {response.text}")
+                return None # Or handle error more gracefully, e.g., raise an exception
+        except requests.exceptions.RequestException as e:
+            print(f"RequestException while fetching users (page offset {offset}): {e}")
+            return None # Or handle error
+
+    # Now search through all_users list
+    for user in all_users:
+        if user.get('employee_number') == employee_number_str:
+            return user # Exact match found
+            
+    return None # No match found after checking all users
 
 def get_assets():
     headers = {
