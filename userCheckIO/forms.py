@@ -42,28 +42,18 @@ class CategoryFilterForm(forms.Form):
         # If not, it will retain the default [('', 'All Categories')]
 
 class AssignAssetForm(forms.Form):
-    asset_id = forms.ChoiceField(
-        label="Select Asset to Assign", 
-        required=True, 
-        choices=[] # Initial empty choices, to be populated by the view
+    asset_tag = forms.CharField(
+        label="Asset Tag",
+        required=True,
+        max_length=100, # Assuming a reasonable max length for asset tags
+        widget=forms.TextInput(attrs={'class': 'input'}) # Basic styling
     )
 
-    def __init__(self, *args, **kwargs):
-        assets_choices = kwargs.pop('assets_choices', [])
-        super().__init__(*args, **kwargs)
-        if assets_choices:
-            # Ensure a default, non-selectable first option if choices are available
-            self.fields['asset_id'].choices = [('', '-- Select an Asset --')] + assets_choices
-            self.fields['asset_id'].widget.attrs.pop('disabled', None) # Ensure not disabled
-        else:
-            # If no assets are available, show a message and disable the field
-            self.fields['asset_id'].choices = [('', 'No available assets found or error fetching assets')]
-            self.fields['asset_id'].widget.attrs['disabled'] = True
-        
-        # Ensure required=True makes sense with potentially disabled field
-        # If disabled and no assets, it shouldn't fail form validation if submitted (though button should be disabled too)
-        # For now, the view logic should prevent submission if no assets.
-        # If the field is disabled, its value won't be submitted anyway.
-        # `required=True` is more for when the field is active and has options.
-        if not assets_choices:
-            self.fields['asset_id'].required = False # Don't require if disabled and no choices
+class UnassignAssetForm(forms.Form):
+    asset_tag = forms.CharField(
+        label=_("Asset Tag to Unassign"), # Using gettext_lazy for potential translation
+        max_length=100,
+        required=True,
+        widget=forms.TextInput(attrs={'class': 'input',
+                                      'placeholder': _('Enter asset tag to unassign')})
+    )

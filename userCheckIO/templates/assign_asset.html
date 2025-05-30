@@ -20,16 +20,32 @@
 
     <form method="post" action="{% url 'assign_asset' user_id=user_id %}">
         {% csrf_token %}
-        <label for="asset_id">Select Asset to Assign:</label>
-        <select name="asset_id" id="asset_id" required>
-            <option value="">-- Select an Asset --</option>
-            {% for asset in available_assets %}
-                <option value="{{ asset.id }}">{{ asset.name }} - Model: {{ asset.model.name }}</option>
-            {% empty %}
-                <option value="" disabled>No available assets found or error fetching assets.</option>
+        {# Display non_field_errors if any (e.g., from messages framework if form itself doesn't handle them) #}
+        {% if form.non_field_errors %}
+            <div class="notification is-danger">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# Render the asset_tag field using Django's form rendering #}
+        {# This will include the label, input, and any validation errors for the field #}
+        <div class="field">
+            <label for="{{ form.asset_tag.id_for_label }}" class="label">{{ form.asset_tag.label }}</label>
+            <div class="control">
+                {# Add/ensure 'input' class for Bulma styling, and a placeholder #}
+                {{ form.asset_tag.as_widget(attrs={'class': 'input', 'placeholder': 'Enter asset tag'}) }}
+            </div>
+            {% if form.asset_tag.help_text %}
+                <p class="help">{{ form.asset_tag.help_text }}</p>
+            {% endif %}
+            {% for error in form.asset_tag.errors %}
+                <p class="help is-danger">{{ error }}</p>
             {% endfor %}
-        </select>
-        <button type="submit" {% if not available_assets %}disabled{% endif %}>Assign Selected Asset</button>
+        </div>
+
+        <button type="submit" class="button is-primary">Assign Asset by Tag</button>
     </form>
 
     <hr>

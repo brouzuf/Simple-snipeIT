@@ -4,7 +4,7 @@ from django.conf import settings
 import requests, json
 from django.http import HttpResponse # Added for potential intermediate use
 from django.contrib import messages # Added for Django messaging framework
-from .forms import LoginForm, EmployeeNumberForm
+from .forms import LoginForm, EmployeeNumberForm, AssignAssetForm, UnassignAssetForm
 
 # Replace with your Snipe-IT API URL and token
 API_URL = settings.SNIPEIT_API_URL
@@ -187,13 +187,13 @@ def logout_view(request):
     return redirect('index')
 
 def assign_asset_to_user_view(request, user_id):
-    #if not request.session.get('snipeit_authenticated'):
-    #    return redirect(f"{reverse('admin_login')}?next={request.get_full_path()}")
+    if not request.session.get('snipeit_authenticated'):
+        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
 
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
-        "Content-Type": "application/json",
+        "Content-Type": "application/json", # Keep for POST
     }
     
     # Fetch user details for display
@@ -205,69 +205,91 @@ def assign_asset_to_user_view(request, user_id):
             user_to_assign_data = user_response.json()
         else:
             messages.error(request, f"User with ID {user_id} not found. API Status: {user_response.status_code}")
-            return redirect('index')
+            return redirect('index') # Or a more appropriate error page/redirect
     except requests.exceptions.RequestException as e:
         messages.error(request, f"Error fetching user details for ID {user_id}: {e}")
         return redirect('index')
 
+    form = AssignAssetForm(request.POST or None) # Instantiate form for GET and POST
+
     if request.method == 'POST':
-        asset_id_to_assign = request.POST.get('asset_id')
-        if not asset_id_to_assign:
-            messages.error(request, "No asset selected. Please select an asset to assign.")
-            # Redirect back to the GET version of the same view
-            return redirect(reverse('assign_asset', args=[user_id]))
+        if form.is_valid():
+            asset_tag_to_find = form.cleaned_data['asset_tag']
 
-        checkout_url = f"{API_URL}hardware/{asset_id_to_assign}/checkout"
-        payload = {
-            "checkout_to_type": "user",
-            "assigned_user": user_id,
-            "note": "Assigned via asset management app."
-        }
-        try:
-            response = requests.post(checkout_url, headers=headers, json=payload, timeout=10)
-            if response.status_code == 200:
-                response_data = response.json()
-                if response_data.get('status') == 'success':
-                    messages.success(request, "Asset assigned successfully.")
-                    employee_number = user_to_assign_data.get('employee_number')
-                    if employee_number:
-                        return redirect(reverse('user_asset_view') + f'?employee_number={employee_number}')
-                    return redirect('index') # Fallback if employee_number not found
+            # Fetch asset by tag from Snipe-IT
+            # Assuming /hardware/bytag/{asset_tag} is the endpoint.
+            # If it's /hardware?search={asset_tag}, response handling might need adjustment
+            # to pick the correct asset from a list or handle multiple matches.
+            asset_by_tag_url = f"{API_URL}hardware/bytag/{asset_tag_to_find}"
+            # Remove Content-Type for GET request to fetch asset by tag
+            get_headers = {k: v for k, v in headers.items() if k != "Content-Type"}
+
+            asset_id_to_assign = None
+            try:
+                asset_response = requests.get(asset_by_tag_url, headers=get_headers, timeout=10)
+                if asset_response.status_code == 200:
+                    asset_data = asset_response.json()
+                    # Check if the response is a direct asset object or a list (like from a search)
+                    if isinstance(asset_data, dict) and 'id' in asset_data: # Direct object
+                        asset_id_to_assign = asset_data.get('id')
+                    elif isinstance(asset_data, dict) and 'rows' in asset_data and len(asset_data['rows']) == 1: # Search result with one match
+                        asset_id_to_assign = asset_data['rows'][0].get('id')
+                    elif isinstance(asset_data, dict) and 'total' in asset_data and asset_data['total'] == 1 and 'rows' in asset_data and len(asset_data['rows']) == 1: # Another common search result pattern
+                        asset_id_to_assign = asset_data['rows'][0].get('id')
+                    else:
+                        # Handle cases: not found, or multiple assets found if API behaves that way
+                        # For /hardware/bytag/, ideally it's specific. If it can return multiple, error here.
+                        # If using a search endpoint, this logic is crucial.
+                        if isinstance(asset_data, dict) and asset_data.get('total', 0) > 1:
+                             messages.error(request, f"Multiple assets found for tag '{asset_tag_to_find}'. Please use a unique tag.")
+                        else:
+                             messages.error(request, f"Asset with tag '{asset_tag_to_find}' not found or API response format unclear.")
+
+                elif asset_response.status_code == 404:
+                     messages.error(request, f"Asset with tag '{asset_tag_to_find}' not found (404).")
                 else:
-                    # Extract message from Snipe-IT if available
-                    api_message = response_data.get('messages', 'Unknown error from API.')
-                    messages.error(request, f"Failed to assign asset: {api_message}")
-            else:
-                messages.error(request, f"Failed to assign asset. Snipe-IT API returned status {response.status_code}. Response: {response.text}")
-        except requests.exceptions.RequestException as e:
-            messages.error(request, f"Error during asset assignment: {e}")
-        
-        # If any error occurred during POST, redirect back to the GET version of assign page
-        # The error message will be displayed by the messages framework.
-        return redirect(reverse('assign_asset', args=[user_id]))
+                    messages.error(request, f"Error fetching asset by tag '{asset_tag_to_find}'. API Status: {asset_response.status_code} - {asset_response.text}")
 
-    else: # GET request
-        available_assets = []
-        # error_message_get = request.GET.get('error_message') # Removed, messages framework handles this
-        
-        assets_url = f"{API_URL}hardware?status=RTD&limit=200&offset=0&sort=name&order=asc"
-        try:
-            response = requests.get(assets_url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                available_assets = response.json().get('rows', [])
-            else:
-                messages.error(request, f"Error fetching available assets: API Status {response.status_code} - {response.text}")
-        except requests.exceptions.RequestException as e:
-             messages.error(request, f"Error fetching available assets: {e}")
+            except requests.exceptions.RequestException as e:
+                messages.error(request, f"Network error fetching asset by tag '{asset_tag_to_find}': {e}")
 
-        context = {
-            'user_to_assign': user_to_assign_data,
-            'available_assets': available_assets,
-            'user_id': user_id,
-            # 'error_message': error_message_get, # Removed
-            # 'success_message': request.GET.get('success_message') # Removed
-        }
-        return render(request, 'assign_asset.html', context)
+            if asset_id_to_assign:
+                checkout_url = f"{API_URL}hardware/{asset_id_to_assign}/checkout"
+                payload = {
+                    "checkout_to_type": "user",
+                    "assigned_user": user_id, # This is the user_id passed to the view
+                    "note": "Assigned via asset management app (by tag)."
+                }
+                try:
+                    # Use original headers with Content-Type for POST
+                    response = requests.post(checkout_url, headers=headers, json=payload, timeout=10)
+                    if response.status_code == 200:
+                        response_data = response.json()
+                        if response_data.get('status') == 'success':
+                            messages.success(request, f"Asset tag '{asset_tag_to_find}' (ID: {asset_id_to_assign}) assigned successfully to user {user_to_assign_data.get('name', user_id)}.")
+                            employee_number = user_to_assign_data.get('employee_number')
+                            if employee_number:
+                                return redirect(reverse('user_asset_view') + f'?employee_number={employee_number}')
+                            return redirect('index') # Fallback
+                        else:
+                            api_message = response_data.get('messages', 'Unknown error from Snipe-IT API.')
+                            messages.error(request, f"Failed to assign asset: {api_message}")
+                    else:
+                        messages.error(request, f"Failed to assign asset. Snipe-IT API returned status {response.status_code}. Response: {response.text}")
+                except requests.exceptions.RequestException as e:
+                    messages.error(request, f"Error during asset assignment: {e}")
+            # If asset_id_to_assign is None (due to error or not found), the user will stay on the page
+            # and see the error message. The form will be re-rendered below.
+
+        # else: form is invalid, it will be re-rendered with errors by the GET part / context below
+
+    # GET request or if POST had form errors or asset lookup failed:
+    context = {
+        'form': form, # Pass the form instance (empty or with POST data and errors)
+        'user_to_assign': user_to_assign_data,
+        'user_id': user_id,
+    }
+    return render(request, 'assign_asset.html', context)
 
 def unassign_asset_from_user_view(request, asset_id):
     if not request.session.get('snipeit_authenticated'):
@@ -331,3 +353,101 @@ def unassign_asset_from_user_view(request, asset_id):
         return redirect(reverse('user_asset_view') + f'?employee_number={employee_number}')
     # Fallback redirect to index if employee_number could not be determined
     return redirect('index')
+
+def unassign_asset_by_tag_view(request, user_id):
+    if not request.session.get('snipeit_authenticated'):
+        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
+
+    headers = {
+        "Authorization": f"Bearer {API_TOKEN}",
+        "Accept": "application/json",
+        # Content-Type will be added for POST requests specifically
+    }
+
+    # Fetch user details for display and redirection context
+    user_context_data = None
+    user_url = f"{API_URL}users/{user_id}"
+    try:
+        # Use headers without Content-Type for this GET request
+        get_headers = {k: v for k, v in headers.items() if k != "Content-Type"}
+        user_response = requests.get(user_url, headers=get_headers, timeout=10)
+        if user_response.status_code == 200:
+            user_context_data = user_response.json()
+        else:
+            messages.error(request, f"User with ID {user_id} (for context) not found. API Status: {user_response.status_code}")
+            return redirect('index') # Or a more appropriate error page
+    except requests.exceptions.RequestException as e:
+        messages.error(request, f"Error fetching user details for ID {user_id}: {e}")
+        return redirect('index')
+
+    form = UnassignAssetForm(request.POST or None)
+
+    if request.method == 'POST':
+        if form.is_valid():
+            asset_tag_to_unassign = form.cleaned_data['asset_tag']
+
+            asset_id_to_unassign = None
+            # Fetch asset by tag from Snipe-IT to get its ID
+            asset_by_tag_url = f"{API_URL}hardware/bytag/{asset_tag_to_unassign}"
+            get_headers = {k: v for k, v in headers.items() if k != "Content-Type"} # Ensure no content-type for GET
+
+            try:
+                asset_response = requests.get(asset_by_tag_url, headers=get_headers, timeout=10)
+                if asset_response.status_code == 200:
+                    asset_data = asset_response.json()
+                    if isinstance(asset_data, dict) and 'id' in asset_data:
+                        asset_id_to_unassign = asset_data.get('id')
+                        # Optional: Check if asset is assigned to the user_context_data.id if needed
+                        # current_assignee_id = asset_data.get('assigned_to', {}).get('id')
+                        # if current_assignee_id != user_id:
+                        #    messages.warning(request, f"Asset {asset_tag_to_unassign} is not assigned to {user_context_data.get('name', 'this user')}.")
+                            # Decide if to proceed or stop
+                    elif isinstance(asset_data, dict) and 'rows' in asset_data and len(asset_data['rows']) == 1:
+                        asset_id_to_unassign = asset_data['rows'][0].get('id')
+                    elif isinstance(asset_data, dict) and 'total' in asset_data and asset_data['total'] == 1 and 'rows' in asset_data and len(asset_data['rows']) == 1:
+                        asset_id_to_unassign = asset_data['rows'][0].get('id')
+                    else:
+                        if isinstance(asset_data, dict) and asset_data.get('total', 0) > 1:
+                            messages.error(request, f"Multiple assets found for tag '{asset_tag_to_unassign}'. Please use a unique tag.")
+                        else:
+                            messages.error(request, f"Asset with tag '{asset_tag_to_unassign}' not found or API response format unclear.")
+                elif asset_response.status_code == 404:
+                    messages.error(request, f"Asset with tag '{asset_tag_to_unassign}' not found (404).")
+                else:
+                    messages.error(request, f"Error fetching asset by tag '{asset_tag_to_unassign}'. API Status: {asset_response.status_code} - {asset_response.text}")
+            except requests.exceptions.RequestException as e:
+                messages.error(request, f"Network error fetching asset by tag '{asset_tag_to_unassign}': {e}")
+
+            if asset_id_to_unassign:
+                # Proceed with check-in (unassignment)
+                checkin_url = f"{API_URL}hardware/{asset_id_to_unassign}/checkin"
+                payload = {"note": "Unassigned via asset management app (by tag)."}
+                post_headers = {**headers, "Content-Type": "application/json"}
+
+                try:
+                    response = requests.post(checkin_url, headers=post_headers, json=payload, timeout=10)
+                    if response.status_code == 200:
+                        response_data = response.json()
+                        if response_data.get('status') == 'success':
+                            messages.success(request, f"Asset tag '{asset_tag_to_unassign}' (ID: {asset_id_to_unassign}) unassigned successfully.")
+                            employee_number = user_context_data.get('employee_number')
+                            if employee_number:
+                                return redirect(reverse('user_asset_view') + f'?employee_number={employee_number}')
+                            # If user_context_data didn't have employee_number, redirect to index or user_asset_view with user_id if that's an option
+                            return redirect('index') # Fallback
+                        else:
+                            api_message = response_data.get('messages', 'Unknown error from Snipe-IT API.')
+                            messages.error(request, f"Failed to unassign asset: {api_message}")
+                    else:
+                        messages.error(request, f"Failed to unassign asset. Snipe-IT API returned status {response.status_code}. Response: {response.text}")
+                except requests.exceptions.RequestException as e:
+                    messages.error(request, f"Error during asset unassignment: {e}")
+            # If asset_id_to_unassign is None, error messages are already set. Re-render form.
+
+    # GET request or if POST had form errors or asset lookup/unassignment failed:
+    context = {
+        'form': form,
+        'user_context': user_context_data, # User for whom the unassignment is being initiated
+        'user_id': user_id, # Pass user_id for form action URL and other links
+    }
+    return render(request, 'unassign_asset_by_tag.html', context)

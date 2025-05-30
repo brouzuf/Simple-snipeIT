@@ -33,8 +33,10 @@
                         Category: {{ asset.category.name|default:"N/A" }}
                     </div>
                     <div class="asset-actions">
-                        {% if asset.id %}
-                        <a href="{% url 'unassign_asset' asset_id=asset.id %}" class="unassign-btn">Unassign</a>
+                        {# The user.id is from the user whose asset list is being viewed #}
+                        {# This link now goes to a page where an asset tag can be entered for unassignment #}
+                        {% if user.id %} {# Ensures we have a user context to pass #}
+                        <a href="{% url 'unassign_asset_by_tag' user_id=user.id %}" class="unassign-btn">Unassign by Tag</a>
                         {% endif %}
                     </div>
                 </li>
