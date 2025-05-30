@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Configure Asset Category Assignment Rules{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title is-2">Configure Asset Category Assignment</h1>
+        <p class="subtitle">Define how users interact with asset categories when assigning assets.</p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="notification is-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="field">
+                <label class="label">{{ form.mode.label }}</label>
+                <div class.control>
+                    {{ form.mode }}
+                </div>
+                {% if form.mode.help_text %}
+                    <p class="help">{{ form.mode.help_text }}</p>
+                {% endif %}
+                {% for error in form.mode.errors %}
+                    <p class="help is-danger">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="field" id="allowed_categories_field">
+                <label class="label">{{ form.allowed_categories.label }}</label>
+                <div class="control">
+                    <div class="select is-multiple">
+                        {# Manual loop for better control over checkbox layout if needed, or just {{ form.allowed_categories }} #}
+                        {{ form.allowed_categories }}
+                    </div>
+                </div>
+                {% if form.allowed_categories.help_text %}
+                    <p class="help">{{ form.allowed_categories.help_text }}</p>
+                {% endif %}
+                {% for error in form.allowed_categories.errors %}
+                    <p class="help is-danger">{{ error }}</p>
+                {% endfor %}
+                 {% for error in form.non_field_errors %} {# Display non-field errors here too #}
+                    <p class="help is-danger">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="field is-grouped">
+                <div class="control">
+                    <button type="submit" class="button is-primary">Save Configuration</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+
+{# Basic JavaScript to toggle visibility of allowed_categories based on mode selection #}
+{# This could be moved to a static JS file and made more robust later #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const modeRadios = document.querySelectorAll('input[name="mode"]');
+    const allowedCategoriesField = document.getElementById('allowed_categories_field');
+
+    function toggleAllowedCategoriesField() {
+        const selectedMode = document.querySelector('input[name="mode"]:checked');
+        if (selectedMode && selectedMode.value === 'fixed') {
+            allowedCategoriesField.style.display = '';
+        } else {
+            allowedCategoriesField.style.display = 'none';
+        }
+    }
+
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', toggleAllowedCategoriesField);
+    });
+
+    // Initial check on page load
+    toggleAllowedCategoriesField();
+});
+</script>
+{% endblock %}
