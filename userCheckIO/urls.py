@@ -8,5 +8,6 @@ urlpatterns = [
     path("user_assets/", views.user_asset_view, name="user_asset_view"),
     # URLs for assign/unassign actions
     path("user/<int:user_id>/assign/", views.assign_asset_to_user_view, name="assign_asset"),
-    path("asset/<int:asset_id>/unassign/", views.unassign_asset_from_user_view, name="unassign_asset"),
+    path("asset/<int:asset_id>/unassign/", views.unassign_asset_from_user_view, name="unassign_asset"), # Kept for direct unassignment if still used
+    path('user/<int:user_id>/unassign_by_tag/', views.unassign_asset_by_tag_view, name='unassign_asset_by_tag'),
 ]
