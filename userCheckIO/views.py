@@ -57,59 +57,37 @@ def index(request):
 
 def get_user_by_employee_number(employee_number_str):
     """
-    Fetches a user from Snipe-IT API by their employee number using pagination.
+    Fetches a user from Snipe-IT API by their employee number.
     Returns the user dictionary if an exact match is found, otherwise None.
     """
     if not employee_number_str:
         return None
-
-    all_users = []
-    limit = 50  # Adjust limit as needed, Snipe-IT default is 50, max might be higher
-    offset = 0
-    total_users = -1 # Initialize with a value that ensures the loop runs at least once
 
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
     }
 
-    while True:
-        # Construct URL with limit and offset for pagination
-        paginated_url = f"{API_URL}/users?limit={limit}&offset={offset}"
-        
-        try:
-            response = requests.get(paginated_url, headers=headers, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                current_page_users = data.get('rows', [])
-                
-                if not current_page_users and total_users == -1: # No users on first fetch
-                    print(f"No users found at all from API: {paginated_url}")
-                    return None
+    search_url = f"{API_URL}users?search={employee_number_str}"
 
-                all_users.extend(current_page_users)
-                
-                if total_users == -1: # First successful fetch
-                    total_users = data.get('total', 0)
-
-                if not current_page_users or len(all_users) >= total_users:
-                    # No more users on the current page or all users fetched
-                    break 
-                
-                offset += limit # Prepare for the next page
-            else:
-                print(f"Error fetching users (page offset {offset}): API returned status {response.status_code} - {response.text}")
-                return None # Or handle error more gracefully, e.g., raise an exception
-        except requests.exceptions.RequestException as e:
-            print(f"RequestException while fetching users (page offset {offset}): {e}")
-            return None # Or handle error
-
-    # Now search through all_users list
-    for user in all_users:
-        if user.get('employee_number') == employee_number_str:
-            return user # Exact match found
-            
-    return None # No match found after checking all users
+    try:
+        response = requests.get(search_url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            rows = data.get('rows', [])
+            for user in rows:
+                # Ensure case-insensitive or exact match as per Snipe-IT's behavior if necessary
+                # Assuming employee_number field in Snipe-IT is reliable for exact match.
+                if user.get('employee_number') == employee_number_str:
+                    return user # Return the first exact match
+            return None # No exact match found
+        else:
+            # Log error or handle specific status codes if needed
+            print(f"Error fetching user: API returned status {response.status_code}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"RequestException while fetching user: {e}")
+        return None
 
 
 def get_assets():
@@ -117,7 +95,7 @@ def get_assets():
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
     }
-    response = requests.get(f"{API_URL}/assets", headers=headers)
+    response = requests.get(f"{API_URL}assets", headers=headers)
     if response.status_code == 200:
         return response.json()
     else:
@@ -151,7 +129,7 @@ def user_asset_view(request):
         }
 
         # Fetch assets for this user
-        user_assets_url = f"{API_URL}/users/{user_id}/assets"
+        user_assets_url = f"{API_URL}users/{user_id}/assets"
         try:
             response = requests.get(user_assets_url, headers=headers, timeout=10)
             if response.status_code == 200:
@@ -165,7 +143,7 @@ def user_asset_view(request):
             messages.error(request, f'Could not retrieve assets from Snipe-IT due to a network error: {e}')
 
         # Fetch categories
-        categories_url = f"{API_URL}/categories"
+        categories_url = f"{API_URL}categories"
         try:
             response = requests.get(categories_url, headers=headers, timeout=10)
             if response.status_code == 200:
@@ -221,7 +199,7 @@ def assign_asset_to_user_view(request, user_id):
     
     # Fetch user details for display
     user_to_assign_data = None
-    user_url = f"{API_URL}/users/{user_id}"
+    user_url = f"{API_URL}users/{user_id}"
     try:
         user_response = requests.get(user_url, headers=headers, timeout=10)
         if user_response.status_code == 200:
@@ -240,7 +218,7 @@ def assign_asset_to_user_view(request, user_id):
             # Redirect back to the GET version of the same view
             return redirect(reverse('assign_asset', args=[user_id]))
 
-        checkout_url = f"{API_URL}/hardware/{asset_id_to_assign}/checkout"
+        checkout_url = f"{API_URL}hardware/{asset_id_to_assign}/checkout"
         payload = {
             "checkout_to_type": "user",
             "assigned_user": user_id,
@@ -273,7 +251,7 @@ def assign_asset_to_user_view(request, user_id):
         available_assets = []
         # error_message_get = request.GET.get('error_message') # Removed, messages framework handles this
         
-        assets_url = f"{API_URL}/hardware?status=RTD&limit=200&offset=0&sort=name&order=asc"
+        assets_url = f"{API_URL}hardware?status=RTD&limit=200&offset=0&sort=name&order=asc"
         try:
             response = requests.get(assets_url, headers=headers, timeout=10)
             if response.status_code == 200:
@@ -305,7 +283,7 @@ def unassign_asset_from_user_view(request, asset_id):
     # First, get asset details to find the assigned user's employee_number for redirection
     employee_number = None
     original_user_id = None
-    asset_details_url = f"{API_URL}/hardware/{asset_id}"
+    asset_details_url = f"{API_URL}hardware/{asset_id}"
     try:
         asset_response = requests.get(asset_details_url, headers=headers, timeout=10)
         if asset_response.status_code == 200:
@@ -316,7 +294,7 @@ def unassign_asset_from_user_view(request, asset_id):
                 # If employee_number is null but we have user_id, we could fetch user details
                 # For now, this should cover most cases if employee_number is populated in Snipe-IT
                 if not employee_number and original_user_id: # Attempt to get user details for employee_number
-                    user_url = f"{API_URL}/users/{original_user_id}"
+                    user_url = f"{API_URL}users/{original_user_id}"
                     user_resp = requests.get(user_url, headers=headers, timeout=5)
                     if user_resp.status_code == 200:
                         employee_number = user_resp.json().get('employee_number')
@@ -328,7 +306,7 @@ def unassign_asset_from_user_view(request, asset_id):
         return redirect('index')
 
     # Proceed with check-in (unassignment)
-    checkin_url = f"{API_URL}/hardware/{asset_id}/checkin"
+    checkin_url = f"{API_URL}hardware/{asset_id}/checkin"
     payload = {"note": "Unassigned via asset management app."}
 
     try:
