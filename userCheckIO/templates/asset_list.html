@@ -3,28 +3,10 @@
 {% block title %}Assets for {{ user.name|default:user.username|default:'User' }} ({{ employee_number }}){% endblock %}
 
 {% block content %}
-    {# Specific styles for this page - consider moving to a static CSS file if they grow #}
-    <style>
-        .filter-form { margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9;}
-        .filter-form label { margin-right: 10px; }
-        .filter-form select, .filter-form button { padding: 8px 12px; margin-right: 10px; border-radius: 3px; border: 1px solid #ccc; }
-        .filter-form button { background-color: #007bff; color: white; cursor: pointer; }
-        .asset-list { list-style-type: none; padding: 0; }
-        .asset-list li { background-color: #fff; border: 1px solid #ddd; margin-bottom: 10px; padding: 15px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; }
-        .asset-details { flex-grow: 1; }
-        .asset-actions a { margin-left: 10px; text-decoration: none; padding: 5px 10px; border-radius: 3px; }
-        .unassign-btn { background-color: #dc3545; color: white; }
-        .assign-new-btn { display: inline-block; background-color: #28a745; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; margin-top: 20px; }
-        /* Message class styling is in base.html, but if you have specific ones like .info-message, they need to be defined or moved */
-        .message.info-message { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; padding:10px; margin-bottom:15px; border-radius:5px;}
-    </style>
+    <h1 class="title">Assets for {{ user.name|default:user.username|default:'User' }}</h1>
+    <p class="subtitle">(Employee Number: {{ employee_number }})</p>
 
-    {# Nav links like "Back to Home" and "Logout" are in base.html, so removed from here #}
-    {# <nav> <a href="{% url 'index' %}">Back to Home</a> <a href="{% url 'logout' %}">Logout</a> </nav> #}
-
-    <h1>Assets for {{ user.name|default:user.username|default:'User' }} (Employee Number: {{ employee_number }})</h1>
-
-    <div class="filter-form">
+    <div class="box has-background-info-light">
         <form method="GET" action="{% url 'user_asset_view' %}">
             <input type="hidden" name="employee_number" value="{{ employee_number }}">
             <label for="category_id">Filter by Category:</label>
@@ -40,7 +22,7 @@
         </form>
     </div>
 
-    <div> {# Changed from class="container" as base.html has a .content div #}
+    <div class="block">
         {% if assets %}
             <ul class="asset-list">
             {% for asset in assets %}
@@ -60,14 +42,15 @@
             </ul>
         {% else %}
             {% if selected_category_id %}
-                <p class="message info-message">No assets found in this category for this user.</p>
+                <p class="message info-message">No assets found in this category.</p>
             {% else %}
-                <p class="message info-message">No assets currently assigned to this user.</p> {# Ensure .message and .info-message are styled if not using base.html styles #}
+                <p class="message info-message">No assets currently assigned.</p>
             {% endif %}
         {% endif %}
-
-        {% if user.id %}
-        <a href="{% url 'assign_asset' user_id=user.id %}" class="assign-new-btn">Assign New Asset</a>
-        {% endif %}
     </div>
+    {% if user.id %}
+        <div class="block">
+            <a class="button is-large is-primary" href="{% url 'assign_asset' user_id=user.id %}">Assign New Asset</a>
+        </div>
+    {% endif %}
 {% endblock %}

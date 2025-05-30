@@ -24,7 +24,7 @@
         <select name="asset_id" id="asset_id" required>
             <option value="">-- Select an Asset --</option>
             {% for asset in available_assets %}
-                <option value="{{ asset.id }}">{{ asset.name }} (Tag: {{ asset.asset_tag }}) - Model: {{ asset.model.name }}</option>
+                <option value="{{ asset.id }}">{{ asset.name }} - Model: {{ asset.model.name }}</option>
             {% empty %}
                 <option value="" disabled>No available assets found or error fetching assets.</option>
             {% endfor %}
