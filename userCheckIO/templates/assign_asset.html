@@ -34,8 +34,7 @@
         <div class="field">
             <label for="{{ form.asset_tag.id_for_label }}" class="label">{{ form.asset_tag.label }}</label>
             <div class="control">
-                {# Add/ensure 'input' class for Bulma styling, and a placeholder #}
-                {{ form.asset_tag.as_widget(attrs={'class': 'input', 'placeholder': 'Enter asset tag'}) }}
+                {{ form.as_div }}
             </div>
             {% if form.asset_tag.help_text %}
                 <p class="help">{{ form.asset_tag.help_text }}</p>

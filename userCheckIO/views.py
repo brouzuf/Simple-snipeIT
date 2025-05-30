@@ -187,9 +187,6 @@ def logout_view(request):
     return redirect('index')
 
 def assign_asset_to_user_view(request, user_id):
-    if not request.session.get('snipeit_authenticated'):
-        return redirect(f"{reverse('login')}?next={request.get_full_path()}")
-
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",

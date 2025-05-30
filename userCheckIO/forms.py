@@ -46,7 +46,8 @@ class AssignAssetForm(forms.Form):
         label="Asset Tag",
         required=True,
         max_length=100, # Assuming a reasonable max length for asset tags
-        widget=forms.TextInput(attrs={'class': 'input'}) # Basic styling
+        widget=forms.TextInput(attrs={'class': 'input',
+                                      'placeholder': _('Enter asset tag to unassign')})
     )
 
 class UnassignAssetForm(forms.Form):
