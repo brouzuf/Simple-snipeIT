@@ -67,7 +67,7 @@ def get_user_by_employee_number(employee_number_str):
         "Accept": "application/json",
     }
 
-    search_url = f"{API_URL}users?search={employee_number_str}"
+    search_url = f"{API_URL}users?employee_num={employee_number_str}"
 
     try:
         response = requests.get(search_url, headers=headers, timeout=100)
@@ -77,7 +77,7 @@ def get_user_by_employee_number(employee_number_str):
             for user in rows:
                 # Ensure case-insensitive or exact match as per Snipe-IT's behavior if necessary
                 # Assuming employee_number field in Snipe-IT is reliable for exact match.
-                if user.get('employee_number') == employee_number_str:
+                if user.get('employee_num') == employee_number_str:
                     return user # Return the first exact match
             return None # No exact match found
         else:
