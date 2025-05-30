@@ -52,7 +52,6 @@ def index(request):
     # Messages are now handled by Django's messaging framework
     # and displayed in the template. No specific context needed here for them.
     form = EmployeeNumberForm()
-
     return render(request, 'index.html', {'form': form})
 
 def get_user_by_employee_number(employee_number_str):
@@ -71,7 +70,7 @@ def get_user_by_employee_number(employee_number_str):
     search_url = f"{API_URL}users?search={employee_number_str}"
 
     try:
-        response = requests.get(search_url, headers=headers, timeout=10)
+        response = requests.get(search_url, headers=headers, timeout=100)
         if response.status_code == 200:
             data = response.json()
             rows = data.get('rows', [])
