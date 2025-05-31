@@ -439,7 +439,6 @@ def unassign_asset_by_tag_view(request, user_id):
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
-        # Content-Type will be added for POST requests specifically
     }
 
     # Fetch user details for display and redirection context
@@ -533,7 +532,7 @@ def unassign_asset_by_tag_view(request, user_id):
 @admin_required
 def configure_asset_categories_view(request):
     headers = {
-        "Authorization": f"Bearer {API_TOKEN}", # Assuming API_TOKEN is globally defined or accessible
+        "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
     }
     category_choices_list = []
