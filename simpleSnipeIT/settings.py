@@ -142,7 +142,6 @@ SNIPEIT_ADMIN_GROUP_ID = env('SNIPEIT_ADMIN_GROUP_ID', default=None)
 # Uses dot notation for nested fields from the Snipe-IT API response.
 NEW_ASSET_LIST_DISPLAY_PROPERTIES = [
     {'label': 'Asset Name', 'path': 'name'},
-    {'label': 'Asset Tag', 'path': 'asset_tag'},
     {'label': 'Serial', 'path': 'serial'},
     {'label': 'Model', 'path': 'model.name'},
     {'label': 'Status', 'path': 'status_label.name'},
