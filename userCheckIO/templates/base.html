@@ -1,3 +1,4 @@
+{% load i18n %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -34,7 +35,7 @@
         <div id="navbarBasic" class="navbar-menu">
             <div class="navbar-start">
                 <a href="{% url 'index' %}" class="navbar-item">
-                    Home
+                    {% trans "Home" %}
                 </a>
                 {% if request.session.is_admin %}
                 <a href="{% url 'configure_asset_categories' %}" class="navbar-item">
@@ -51,6 +52,22 @@
                 {% endif %}
             </div>
             <div class="navbar-end">
+                <form action="{% url 'set_language' %}" method="post" class="navbar-item">
+                    {% csrf_token %}
+                    <input name="next" type="hidden" value="{{ request.get_full_path|slice:":-3" }}">
+                    <div class="select">
+                        <select name="language" onchange="this.form.submit()">
+                            {% get_current_language as LANGUAGE_CODE %}
+                            {% get_available_languages as LANGUAGES %}
+                            {% get_language_info_list for LANGUAGES as languages %}
+                            {% for language in languages %}
+                                <option value="{{ language.code }}"{% if language.code == LANGUAGE_CODE %} selected{% endif %}>
+                                    {{ language.name_local }} ({{ language.code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </form>
                 {% if request.session.is_admin %}
                 <a href="{% url 'logout' %}" class="navbar-item">
                     Logout

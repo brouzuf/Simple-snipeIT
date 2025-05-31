@@ -1,0 +1,97 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-05-31 22:12+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+#: simpleSnipeIT/settings.py:36
+msgid "English"
+msgstr ""
+
+#: simpleSnipeIT/settings.py:37
+msgid "French"
+msgstr ""
+
+#: userCheckIO/forms.py:20
+msgid "Enter Your Employee Number"
+msgstr ""
+
+#: userCheckIO/forms.py:24
+msgid "Employee Number"
+msgstr ""
+
+#: userCheckIO/forms.py:51
+msgid "Enter asset tag to assign"
+msgstr ""
+
+#: userCheckIO/forms.py:56
+msgid "Asset Tag to Unassign"
+msgstr ""
+
+#: userCheckIO/forms.py:61
+msgid "Enter asset tag to unassign"
+msgstr ""
+
+#: userCheckIO/forms.py:68
+msgid "Featured Asset Categories"
+msgstr ""
+
+#: userCheckIO/forms.py:69
+msgid ""
+"Select categories to be highlighted in special reports or views. An empty "
+"selection is valid."
+msgstr ""
+
+#: userCheckIO/models.py:6
+msgid "Display category selector"
+msgstr ""
+
+#: userCheckIO/models.py:7
+msgid "Use fixed list of categories"
+msgstr ""
+
+#: userCheckIO/models.py:14
+msgid "Assignment Category Mode"
+msgstr ""
+
+#: userCheckIO/models.py:15
+msgid ""
+"Determines if users select a category during assignment, or if a fixed list "
+"(defined below) is used."
+msgstr ""
+
+#: userCheckIO/models.py:20
+msgid "Allowed Asset Category IDs"
+msgstr ""
+
+#: userCheckIO/models.py:21
+msgid ""
+"List of Snipe-IT category IDs. Used when mode is 'fixed'. The asset's actual "
+"category must be in this list."
+msgstr ""
+
+#: userCheckIO/models.py:25
+msgid "Asset Category Configuration"
+msgstr ""
+
+#: userCheckIO/models.py:26
+msgid "Asset Category Configurations"
+msgstr ""
+
+#: userCheckIO/templates/base.html:38
+msgid "Home"
+msgstr "Accueil"
