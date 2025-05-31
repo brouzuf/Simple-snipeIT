@@ -4,7 +4,10 @@ from django.conf import settings
 import requests, json
 from django.http import HttpResponse # Added for potential intermediate use
 from django.contrib import messages # Added for Django messaging framework
-from .forms import LoginForm, EmployeeNumberForm, AssignAssetForm, UnassignAssetForm
+from .forms import LoginForm, EmployeeNumberForm, AssignAssetForm, UnassignAssetForm, CategoryConfigForm
+from .decorators import admin_required
+from .models import AssetCategoryConfiguration
+from .utils import get_nested_value # Import the helper function
 
 # Replace with your Snipe-IT API URL and token
 API_URL = settings.SNIPEIT_API_URL
@@ -24,13 +27,41 @@ def login_view(request):
         }
         # Attempting to get the first user as a test. A /hardware endpoint or similar could also be used.
         # A /users/me endpoint would be ideal if Snipe-IT has one.
-        test_url = f"{settings.SNIPEIT_API_URL.rstrip('/')}/users?limit=1"
+        # Using /api/v1/users/me to check token and get user details
+        me_url = f"{settings.SNIPEIT_API_URL.rstrip('/')}/users/me"
         try:
-            response = requests.get(test_url, headers=headers, timeout=10)
+            response = requests.get(me_url, headers=headers, timeout=10)
             if response.status_code == 200:
                 # Authentication successful
                 request.session['snipeit_authenticated'] = True
                 request.session['snipeit_api_token'] = API_TOKEN # Store token if needed for other requests
+
+                user_details = response.json()
+                user_id = user_details.get('id')
+                admin_group_id_str = str(settings.SNIPEIT_ADMIN_GROUP_ID) if settings.SNIPEIT_ADMIN_GROUP_ID else None
+
+                request.session['is_admin'] = False # Default to not admin
+
+                if user_id and admin_group_id_str:
+                    # Assuming user_details contains group information directly or need to fetch separately.
+                    # For this implementation, we'll check a 'groups' field in user_details.
+                    # This structure is common: user_details = {"id": 123, ..., "groups": {"total": 1, "rows": [{"id": 1, "name": "Admins"}]} }
+                    # Or sometimes groups are directly an array: "groups": [{"id": 1, "name": "Admins"}]
+
+                    user_groups = user_details.get('groups') # This could be a dict with 'rows' or a list
+
+                    if isinstance(user_groups, dict) and 'rows' in user_groups:
+                        groups_list = user_groups.get('rows', [])
+                    elif isinstance(user_groups, list):
+                        groups_list = user_groups
+                    else:
+                        groups_list = []
+
+                    for group in groups_list:
+                        if str(group.get('id')) == admin_group_id_str:
+                            request.session['is_admin'] = True
+                            break
+
                 messages.success(request, "Login successful.") # Optional: Add a success message
                 return redirect('index') # Redirect to the main index page
             else:
@@ -207,11 +238,33 @@ def assign_asset_to_user_view(request, user_id):
         messages.error(request, f"Error fetching user details for ID {user_id}: {e}")
         return redirect('index')
 
-    form = AssignAssetForm(request.POST or None) # Instantiate form for GET and POST
+    # Fetch all asset-type categories from Snipe-IT for the form choices
+    category_choices_for_form = []
+    categories_url = f"{API_URL}categories?limit=500&sort=name&order=asc"
+    try:
+        get_only_headers = {key: value for key, value in headers.items() if key != "Content-Type"}
+        categories_response = requests.get(categories_url, headers=get_only_headers, timeout=10)
+        if categories_response.status_code == 200:
+            snipeit_categories_data = categories_response.json().get('rows', [])
+            # Filter for asset type categories and ensure they have id and name, convert ID to string for form
+            category_choices_for_form = [
+                (str(cat['id']), cat['name']) for cat in snipeit_categories_data
+                if cat.get('category_type') == 'asset' and cat.get('id') is not None and cat.get('name') is not None
+            ]
+        else:
+            messages.error(request, f"Could not fetch asset categories from Snipe-IT: Status {categories_response.status_code}")
+    except requests.exceptions.RequestException as e:
+        messages.error(request, f"Error connecting to Snipe-IT to fetch categories: {e}")
+
+    # If no categories could be fetched or none are of type 'asset', category_choices_for_form will be empty.
+    # The form's __init__ method has a fallback for this: self.fields['category_id'].choices = [('', 'No categories available')]
+
+    form = AssignAssetForm(request.POST or None, categories_choices=category_choices_for_form)
 
     if request.method == 'POST':
-        if form.is_valid():
+        if form.is_valid(): # Form was already instantiated with potentially filtered choices
             asset_tag_to_find = form.cleaned_data['asset_tag']
+            selected_category_id = form.cleaned_data['category_id'] # This will be one of the IDs from category_choices_for_form
 
             # Fetch asset by tag from Snipe-IT
             # Assuming /hardware/bytag/{asset_tag} is the endpoint.
@@ -222,22 +275,24 @@ def assign_asset_to_user_view(request, user_id):
             get_headers = {k: v for k, v in headers.items() if k != "Content-Type"}
 
             asset_id_to_assign = None
+            asset_data_for_validation = None # To store asset data for category check
             try:
                 asset_response = requests.get(asset_by_tag_url, headers=get_headers, timeout=10)
                 if asset_response.status_code == 200:
-                    asset_data = asset_response.json()
+                    fetched_asset_data = asset_response.json()
                     # Check if the response is a direct asset object or a list (like from a search)
-                    if isinstance(asset_data, dict) and 'id' in asset_data: # Direct object
-                        asset_id_to_assign = asset_data.get('id')
-                    elif isinstance(asset_data, dict) and 'rows' in asset_data and len(asset_data['rows']) == 1: # Search result with one match
-                        asset_id_to_assign = asset_data['rows'][0].get('id')
-                    elif isinstance(asset_data, dict) and 'total' in asset_data and asset_data['total'] == 1 and 'rows' in asset_data and len(asset_data['rows']) == 1: # Another common search result pattern
-                        asset_id_to_assign = asset_data['rows'][0].get('id')
+                    if isinstance(fetched_asset_data, dict) and 'id' in fetched_asset_data: # Direct object
+                        asset_id_to_assign = fetched_asset_data.get('id')
+                        asset_data_for_validation = fetched_asset_data
+                    elif isinstance(fetched_asset_data, dict) and 'rows' in fetched_asset_data and len(fetched_asset_data['rows']) == 1: # Search result with one match
+                        asset_id_to_assign = fetched_asset_data['rows'][0].get('id')
+                        asset_data_for_validation = fetched_asset_data['rows'][0]
+                    elif isinstance(fetched_asset_data, dict) and 'total' in fetched_asset_data and fetched_asset_data['total'] == 1 and 'rows' in fetched_asset_data and len(fetched_asset_data['rows']) == 1: # Another common search result pattern
+                        asset_id_to_assign = fetched_asset_data['rows'][0].get('id')
+                        asset_data_for_validation = fetched_asset_data['rows'][0]
                     else:
                         # Handle cases: not found, or multiple assets found if API behaves that way
-                        # For /hardware/bytag/, ideally it's specific. If it can return multiple, error here.
-                        # If using a search endpoint, this logic is crucial.
-                        if isinstance(asset_data, dict) and asset_data.get('total', 0) > 1:
+                        if isinstance(fetched_asset_data, dict) and fetched_asset_data.get('total', 0) > 1:
                              messages.error(request, f"Multiple assets found for tag '{asset_tag_to_find}'. Please use a unique tag.")
                         else:
                              messages.error(request, f"Asset with tag '{asset_tag_to_find}' not found or API response format unclear.")
@@ -250,41 +305,53 @@ def assign_asset_to_user_view(request, user_id):
             except requests.exceptions.RequestException as e:
                 messages.error(request, f"Network error fetching asset by tag '{asset_tag_to_find}': {e}")
 
-            if asset_id_to_assign:
-                checkout_url = f"{API_URL}hardware/{asset_id_to_assign}/checkout"
-                payload = {
-                    "checkout_to_type": "user",
-                    "assigned_user": user_id, # This is the user_id passed to the view
-                    "note": "Assigned via asset management app (by tag)."
-                }
-                try:
-                    # Use original headers with Content-Type for POST
-                    response = requests.post(checkout_url, headers=headers, json=payload, timeout=10)
-                    if response.status_code == 200:
-                        response_data = response.json()
-                        if response_data.get('status') == 'success':
-                            messages.success(request, f"Asset tag '{asset_tag_to_find}' (ID: {asset_id_to_assign}) assigned successfully to user {user_to_assign_data.get('name', user_id)}.")
-                            employee_number = user_to_assign_data.get('employee_number')
-                            if employee_number:
-                                return redirect(reverse('user_asset_view') + f'?employee_number={employee_number}')
-                            return redirect('index') # Fallback
+            if asset_id_to_assign and asset_data_for_validation:
+                # Validate category
+                asset_actual_category_id = str(asset_data_for_validation.get('category', {}).get('id'))
+                # Ensure selected_category_id is also a string for comparison
+                if str(selected_category_id) != asset_actual_category_id:
+                    error_message = (f"The asset found with tag '{asset_tag_to_find}' belongs to a different category "
+                                     f"(ID: {asset_actual_category_id}) than selected (ID: {selected_category_id}).")
+                    form.add_error('asset_tag', error_message)
+                    # No 'else' here, if error added, we fall through to re-rendering the form with this error
+                else:
+                    # Category matches, proceed with checkout
+                    checkout_url = f"{API_URL}hardware/{asset_id_to_assign}/checkout"
+                    payload = {
+                        "checkout_to_type": "user",
+                        "assigned_user": user_id, # This is the user_id passed to the view
+                        "note": "Assigned via asset management app (by tag)."
+                    }
+                    try:
+                        # Use original headers with Content-Type for POST
+                        response = requests.post(checkout_url, headers=headers, json=payload, timeout=10)
+                        if response.status_code == 200:
+                            response_data = response.json()
+                            if response_data.get('status') == 'success':
+                                messages.success(request, f"Asset tag '{asset_tag_to_find}' (ID: {asset_id_to_assign}) assigned successfully to user {user_to_assign_data.get('name', user_id)}.")
+                                employee_number = user_to_assign_data.get('employee_number')
+                                if employee_number:
+                                    return redirect(reverse('user_asset_view') + f'?employee_number={employee_number}')
+                                return redirect('index') # Fallback
+                            else:
+                                api_message = response_data.get('messages', 'Unknown error from Snipe-IT API.')
+                                messages.error(request, f"Failed to assign asset: {api_message}")
                         else:
-                            api_message = response_data.get('messages', 'Unknown error from Snipe-IT API.')
-                            messages.error(request, f"Failed to assign asset: {api_message}")
-                    else:
-                        messages.error(request, f"Failed to assign asset. Snipe-IT API returned status {response.status_code}. Response: {response.text}")
-                except requests.exceptions.RequestException as e:
-                    messages.error(request, f"Error during asset assignment: {e}")
-            # If asset_id_to_assign is None (due to error or not found), the user will stay on the page
-            # and see the error message. The form will be re-rendered below.
+                            messages.error(request, f"Failed to assign asset. Snipe-IT API returned status {response.status_code}. Response: {response.text}")
+                    except requests.exceptions.RequestException as e:
+                        messages.error(request, f"Error during asset assignment: {e}")
+            # If asset_id_to_assign is None, or asset_data_for_validation is None, or category validation failed and form error was added,
+            # messages/form errors are already set. The form will be re-rendered below.
+            # No explicit 'else' needed here as the context rendering is the default fall-through.
 
-        # else: form is invalid, it will be re-rendered with errors by the GET part / context below
+        # else: form is invalid (e.g. missing asset_tag or category_id), it will be re-rendered with errors by the GET part / context below
 
-    # GET request or if POST had form errors or asset lookup failed:
+    # GET request, or POST with form validation errors, or POST with asset lookup/validation errors:
     context = {
         'form': form, # Pass the form instance (empty or with POST data and errors)
         'user_to_assign': user_to_assign_data,
         'user_id': user_id,
+        # current_assignment_mode and allowed_categories_for_display are removed from context
     }
     return render(request, 'assign_asset.html', context)
 
@@ -448,3 +515,123 @@ def unassign_asset_by_tag_view(request, user_id):
         'user_id': user_id, # Pass user_id for form action URL and other links
     }
     return render(request, 'unassign_asset_by_tag.html', context)
+
+@admin_required
+def configure_asset_categories_view(request):
+    headers = {
+        "Authorization": f"Bearer {API_TOKEN}", # Assuming API_TOKEN is globally defined or accessible
+        "Accept": "application/json",
+    }
+    category_choices_list = []
+    categories_url = f"{API_URL}categories?limit=500&sort=name&order=asc" # Get all, sort for display
+    try:
+        categories_response = requests.get(categories_url, headers=headers, timeout=10)
+        if categories_response.status_code == 200:
+            categories_data = categories_response.json().get('rows', [])
+            # Removed cat.get('category_type') == 'asset' filter.
+            # Now includes all categories that have an id and a name.
+            category_choices_list = [
+                (str(cat['id']), cat['name']) for cat in categories_data
+                if cat.get('id') is not None and cat.get('name') is not None
+            ]
+        else:
+            messages.error(request, f"Failed to fetch asset categories from Snipe-IT: Status {categories_response.status_code}")
+    except requests.exceptions.RequestException as e:
+        messages.error(request, f"Error connecting to Snipe-IT to fetch categories: {e}")
+
+    config_obj = AssetCategoryConfiguration.load()
+
+    if request.method == 'POST':
+        form = CategoryConfigForm(request.POST, categories_choices=category_choices_list)
+        if form.is_valid():
+            allowed_cats_str = form.cleaned_data.get('allowed_categories', [])
+
+            # The mode field is no longer part of the form or this view's direct logic.
+            # We only save allowed_category_ids. The mode in DB remains untouched by this view.
+            config_obj.allowed_category_ids = [int(cat_id) for cat_id in allowed_cats_str]
+            config_obj.save()
+            messages.success(request, "Featured category list saved successfully.")
+            return redirect('configure_asset_categories')
+    else:  # GET request
+        initial_data = {
+            # Ensure allowed_category_ids from DB are strings for form MultipleChoiceField initialization
+            'allowed_categories': [str(cat_id) for cat_id in config_obj.allowed_category_ids]
+        }
+        form = CategoryConfigForm(initial=initial_data, categories_choices=category_choices_list)
+
+    return render(request, 'configure_asset_categories.html', {'form': form})
+
+
+def filtered_asset_list_view(request):
+    if not request.session.get('snipeit_authenticated'):
+        # Redirect to login if not authenticated, preserving the intended path
+        return redirect(f"{reverse('login')}?next={request.path}")
+
+    config = AssetCategoryConfiguration.load()
+    featured_category_ids = config.allowed_category_ids # These are integers
+    display_properties_config = settings.NEW_ASSET_LIST_DISPLAY_PROPERTIES
+
+    all_raw_assets_from_api = []
+
+    if not featured_category_ids:
+        messages.info(request, "No featured categories have been configured by the administrator. Please select categories in the 'Configure Featured Categories' admin page to see assets here.")
+    else:
+        headers = {
+            "Authorization": f"Bearer {API_TOKEN}",
+            "Accept": "application/json",
+        }
+        for category_id in featured_category_ids:
+            # Ensure category_id is an integer for the API call
+            assets_url = f"{API_URL}hardware?category_id={int(category_id)}&limit=200&sort=name&order=asc"
+            try:
+                response = requests.get(assets_url, headers=headers, timeout=15)
+                if response.status_code == 200:
+                    assets_data = response.json().get('rows', [])
+                    all_raw_assets_from_api.extend(assets_data)
+                else:
+                    messages.error(request, f"Failed to fetch assets for category ID {category_id}. Snipe-IT API status: {response.status_code} - {response.text}")
+            except requests.exceptions.RequestException as e:
+                messages.error(request, f"Error connecting to Snipe-IT API for category ID {category_id}: {e}")
+
+    processed_assets_list = []
+    # Deduplicate assets based on ID, in case an asset is in multiple featured categories
+    # (though Snipe-IT typically assigns an asset to a single category)
+    seen_asset_ids = set()
+    unique_raw_assets = []
+    for asset_data in all_raw_assets_from_api:
+        asset_id = asset_data.get('id')
+        if asset_id and asset_id not in seen_asset_ids:
+            unique_raw_assets.append(asset_data)
+            seen_asset_ids.add(asset_id)
+
+    for asset_data in unique_raw_assets:
+        processed_asset = {'id': asset_data.get('id'), 'raw': asset_data} # Store raw for potential future use in template
+
+        assigned_to_info = asset_data.get('assigned_to')
+        if assigned_to_info and isinstance(assigned_to_info, dict):
+            processed_asset['assigned_to_name'] = assigned_to_info.get('name')
+            processed_asset['assigned_to_type'] = assigned_to_info.get('type')
+        else:
+            processed_asset['assigned_to_name'] = None
+            processed_asset['assigned_to_type'] = None
+
+        processed_asset['category_name'] = get_nested_value(asset_data, 'category.name')
+
+        processed_asset['properties'] = []
+        for prop_config in display_properties_config:
+            value = get_nested_value(asset_data, prop_config['path'])
+            processed_asset['properties'].append({
+                'label': prop_config['label'],
+                'value': value if value is not None else ''
+            })
+        processed_assets_list.append(processed_asset)
+
+    column_headers = ["Assigned To", "Category"] + [prop['label'] for prop in display_properties_config]
+
+    context = {
+        'assets': processed_assets_list,
+        'column_headers': column_headers,
+        'featured_category_ids': featured_category_ids, # For display or debugging if needed
+        'page_title': "Featured Assets by Category"
+    }
+    return render(request, 'filtered_asset_list.html', context)

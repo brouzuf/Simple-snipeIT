@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Configure Featured Categories{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title is-2">Configure Featured Categories</h1>
+        <p class="subtitle">Select categories to be highlighted or used for special asset lists/reports.</p>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="notification is-{{ message.tags }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" novalidate>
+            {% csrf_token %}
+
+            <div class="field" id="allowed_categories_field">
+                <label class="label">{{ form.allowed_categories.label_tag }}</label>
+                <div class="control">
+                    <div class="select is-multiple">
+                        {# Manual loop for better control over checkbox layout if needed, or just {{ form.allowed_categories }} #}
+                        {{ form.allowed_categories }}
+                    </div>
+                </div>
+
+                {# Check if the choices list is effectively empty (only contains the placeholder) #}
+                {% if form.allowed_categories.field.choices|length == 1 and form.allowed_categories.field.choices.0.0 == "" %}
+                    <p class="help is-warning" style="margin-top: 10px;">
+                        <strong>No categories available to select.</strong> This could be due to several reasons:
+                        <ul style="list-style-type: disc; margin-left: 20px; margin-top: 5px;">
+                            <li>There are no categories defined in your Snipe-IT instance that could be fetched.</li>
+                            <li>The API token used by this application may not have permissions to view categories in Snipe-IT.</li>
+                            <li>There might have been an issue connecting to the Snipe-IT API to fetch categories (check for other error messages that may have appeared at the top of the page).</li>
+                        </ul>
+                        Please verify your Snipe-IT setup and the application's environment configuration (API token, URL).
+                    </p>
+                {% elif form.allowed_categories.help_text %}
+                    <p class="help">{{ form.allowed_categories.help_text }}</p>
+                {% endif %}
+
+                {% for error in form.allowed_categories.errors %}
+                    <p class="help is-danger">{{ error }}</p>
+                {% endfor %}
+                 {% for error in form.non_field_errors %} {# Display non-field errors here too #}
+                    <p class="help is-danger">{{ error }}</p>
+                {% endfor %}
+            </div>
+
+            <div class="field is-grouped">
+                <div class="control">
+                    <button type="submit" class="button is-primary">Save Featured List</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</section>
+{% endblock %}

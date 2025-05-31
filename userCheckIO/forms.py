@@ -42,13 +42,28 @@ class CategoryFilterForm(forms.Form):
         # If not, it will retain the default [('', 'All Categories')]
 
 class AssignAssetForm(forms.Form):
+    category_id = forms.ChoiceField(
+        label="Asset Category",
+        required=True,
+        choices=[], # Will be populated in __init__
+        widget=forms.Select(attrs={'class': 'select'})
+    )
     asset_tag = forms.CharField(
         label="Asset Tag",
         required=True,
         max_length=100, # Assuming a reasonable max length for asset tags
         widget=forms.TextInput(attrs={'class': 'input',
-                                      'placeholder': _('Enter asset tag to unassign')})
+                                      'placeholder': _('Enter asset tag to assign')}) # Corrected placeholder
     )
+
+    def __init__(self, *args, **kwargs):
+        categories_choices = kwargs.pop('categories_choices', None)
+        super().__init__(*args, **kwargs)
+        if categories_choices:
+            self.fields['category_id'].choices = [('', 'Select a category')] + categories_choices
+        else:
+            # Fallback if no categories are provided, though ideally the view always provides them.
+            self.fields['category_id'].choices = [('', 'No categories available')]
 
 class UnassignAssetForm(forms.Form):
     asset_tag = forms.CharField(
@@ -58,3 +73,25 @@ class UnassignAssetForm(forms.Form):
         widget=forms.TextInput(attrs={'class': 'input',
                                       'placeholder': _('Enter asset tag to unassign')})
     )
+
+class CategoryConfigForm(forms.Form):
+    allowed_categories = forms.MultipleChoiceField(
+        widget=forms.CheckboxSelectMultiple,
+        required=False, # An empty list is allowed
+        label=_("Featured Asset Categories"),
+        help_text=_("Select categories to be highlighted in special reports or views. An empty selection is valid.")
+    )
+
+    def __init__(self, *args, **kwargs):
+        categories_choices = kwargs.pop('categories_choices', None)
+        super().__init__(*args, **kwargs)
+        if categories_choices:
+            self.fields['allowed_categories'].choices = categories_choices
+        else:
+            self.fields['allowed_categories'].choices = [('', 'No categories available to configure')]
+
+        # Dynamically set required based on mode; this is tricky for initial load
+        # and might be better handled in view validation or with JavaScript.
+        # For now, 'required=False' on field and view will validate.
+        # if self.initial.get('mode') == 'fixed' or (self.is_bound and self.data.get('mode') == 'fixed'):
+        #     self.fields['allowed_categories'].required = True
