@@ -22,7 +22,7 @@ class EmployeeNumberForm(forms.Form):
         required=True,
         widget=forms.TextInput(attrs={'class': 'input is-large is-primary',
                                       'title': _('Employee Number'),
-                                      'size': '20',
+                                      'autofocus': 'autofocus',
                                       'placeholder': 'Employee Number'})
     )
 
