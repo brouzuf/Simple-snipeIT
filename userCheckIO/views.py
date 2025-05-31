@@ -6,6 +6,7 @@ from django.http import HttpResponse # Added for potential intermediate use
 from django.contrib import messages # Added for Django messaging framework
 from .forms import LoginForm, EmployeeNumberForm, AssignAssetForm, UnassignAssetForm, CategoryConfigForm
 from .decorators import admin_required
+from .models import AssetCategoryConfiguration
 
 # Replace with your Snipe-IT API URL and token
 API_URL = settings.SNIPEIT_API_URL
@@ -236,14 +237,16 @@ def assign_asset_to_user_view(request, user_id):
         messages.error(request, f"Error fetching user details for ID {user_id}: {e}")
         return redirect('index')
 
-    # Asset category configuration
-    config = request.session.get('asset_category_config', {'mode': 'select', 'allowed_categories': []})
-    current_assignment_mode = config.get('mode', 'select')
-    # Ensure allowed_category_ids are integers for comparison with cat['id']
-    allowed_category_ids_config = {int(cat_id) for cat_id in config.get('allowed_categories', [])}
+    # Load Asset Category Configuration from Database
+    db_config = AssetCategoryConfiguration.load()
+    current_assignment_mode = db_config.mode
+    # allowed_category_ids_from_db are integers
+    allowed_category_ids_from_db = set(db_config.allowed_category_ids if db_config.allowed_category_ids else [])
 
-    all_fetched_categories = [] # To store (id, name) tuples of all asset-type categories
-    category_choices_for_form = []
+    # Fetch all asset-type categories from Snipe-IT to populate choices
+    # These are [(id, name), ...] where id is an integer from Snipe-IT
+    all_snipeit_asset_categories = []
+    category_choices_for_form = [] # This will be passed to the form
     allowed_categories_for_display = [] # For template context if mode is 'fixed'
 
     categories_url = f"{API_URL}categories?limit=500&sort=name&order=asc"
@@ -251,27 +254,33 @@ def assign_asset_to_user_view(request, user_id):
         get_only_headers = {key: value for key, value in headers.items() if key != "Content-Type"}
         categories_response = requests.get(categories_url, headers=get_only_headers, timeout=10)
         if categories_response.status_code == 200:
-            categories_data = categories_response.json().get('rows', [])
-            all_fetched_categories = [(cat['id'], cat['name']) for cat in categories_data if cat.get('category_type') == 'asset']
+            snipeit_categories_data = categories_response.json().get('rows', [])
+            # Filter for asset type categories and ensure they have id and name
+            all_snipeit_asset_categories = [
+                (cat['id'], cat['name']) for cat in snipeit_categories_data
+                if cat.get('category_type') == 'asset' and cat.get('id') is not None and cat.get('name') is not None
+            ]
 
             if current_assignment_mode == 'fixed':
-                if not allowed_category_ids_config:
-                    messages.warning(request, "Asset assignment is in 'fixed' category mode, but no categories are configured as allowed. Please contact an administrator.")
-                    # category_choices_for_form will remain empty, form likely won't validate.
+                if not allowed_category_ids_from_db:
+                    messages.warning(request, "Asset assignment is in 'fixed' category mode, but no categories are configured as allowed in the database. Please contact an administrator.")
+                    # category_choices_for_form will remain empty
                 else:
-                    for cat_id, cat_name in all_fetched_categories:
-                        if cat_id in allowed_category_ids_config:
-                            category_choices_for_form.append((cat_id, cat_name))
-                            allowed_categories_for_display.append({'id': cat_id, 'name': cat_name}) # For template
-                    if not category_choices_for_form:
-                         messages.warning(request, "Asset assignment is in 'fixed' category mode, but none of the configured allowed categories could be found or are valid asset categories. Please contact an administrator.")
+                    for cat_id, cat_name in all_snipeit_asset_categories:
+                        # cat_id from Snipe-IT is an integer, compare with integers from DB config
+                        if cat_id in allowed_category_ids_from_db:
+                            category_choices_for_form.append((str(cat_id), cat_name)) # Form choices need string ID
+                            allowed_categories_for_display.append({'id': str(cat_id), 'name': cat_name})
+                    if not category_choices_for_form and allowed_category_ids_from_db: # Config had IDs, but none matched valid Snipe-IT asset categories
+                         messages.warning(request, "Asset assignment is in 'fixed' category mode. While there are categories configured, none of them match currently available asset categories from Snipe-IT. Please check configuration or Snipe-IT categories.")
             else: # mode == 'select'
-                category_choices_for_form = all_fetched_categories
+                category_choices_for_form = [(str(cat_id), cat_name) for cat_id, cat_name in all_snipeit_asset_categories]
         else:
-            messages.error(request, f"Could not fetch asset categories: Status {categories_response.status_code}")
+            messages.error(request, f"Could not fetch asset categories from Snipe-IT: Status {categories_response.status_code}")
     except requests.exceptions.RequestException as e:
-        messages.error(request, f"Error fetching asset categories: {e}")
+        messages.error(request, f"Error connecting to Snipe-IT to fetch categories: {e}")
 
+    # Ensure form choices IDs are strings
     form = AssignAssetForm(request.POST or None, categories_choices=category_choices_for_form)
 
     if request.method == 'POST':
@@ -552,31 +561,30 @@ def configure_asset_categories_view(request):
     except requests.exceptions.RequestException as e:
         messages.error(request, f"Error connecting to Snipe-IT to fetch categories: {e}")
 
-    current_config = request.session.get('asset_category_config', {'mode': 'select', 'allowed_categories': []})
-    # Ensure allowed_categories in current_config are strings for initial form population, as form values are strings.
-    current_config['allowed_categories'] = [str(cat_id) for cat_id in current_config.get('allowed_categories', [])]
-
+    config_obj = AssetCategoryConfiguration.load()
 
     if request.method == 'POST':
         form = CategoryConfigForm(request.POST, categories_choices=category_choices_list)
         if form.is_valid():
             mode = form.cleaned_data['mode']
-            # .get on cleaned_data for MultipleChoiceField returns a list (empty if none selected)
             allowed_cats_str = form.cleaned_data.get('allowed_categories', [])
 
             if mode == 'fixed' and not allowed_cats_str:
                 form.add_error('allowed_categories', 'Please select at least one category when in "fixed" mode.')
-                # Fall through to re-render form with this error
+                # Fall through to re-render form with this error (form object already has errors)
             else:
-                # Store IDs as integers in session for consistency, though form values are strings.
-                updated_config = {
-                    'mode': mode,
-                    'allowed_categories': [int(cat_id) for cat_id in allowed_cats_str]
-                }
-                request.session['asset_category_config'] = updated_config
+                config_obj.mode = mode
+                # Ensure IDs are stored as integers in the JSONField
+                config_obj.allowed_category_ids = [int(cat_id) for cat_id in allowed_cats_str]
+                config_obj.save()
                 messages.success(request, "Asset category configuration saved successfully.")
                 return redirect('configure_asset_categories')
-    else: # GET request
-        form = CategoryConfigForm(initial=current_config, categories_choices=category_choices_list)
+    else:  # GET request
+        initial_data = {
+            'mode': config_obj.mode,
+            # Ensure allowed_category_ids from DB are strings for form MultipleChoiceField initialization
+            'allowed_categories': [str(cat_id) for cat_id in config_obj.allowed_category_ids]
+        }
+        form = CategoryConfigForm(initial=initial_data, categories_choices=category_choices_list)
 
     return render(request, 'configure_asset_categories.html', {'form': form})
