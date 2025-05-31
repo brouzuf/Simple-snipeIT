@@ -542,7 +542,12 @@ def configure_asset_categories_view(request):
         categories_response = requests.get(categories_url, headers=headers, timeout=10)
         if categories_response.status_code == 200:
             categories_data = categories_response.json().get('rows', [])
-            category_choices_list = [(str(cat['id']), cat['name']) for cat in categories_data if cat.get('category_type') == 'asset']
+            # Removed cat.get('category_type') == 'asset' filter.
+            # Now includes all categories that have an id and a name.
+            category_choices_list = [
+                (str(cat['id']), cat['name']) for cat in categories_data
+                if cat.get('id') is not None and cat.get('name') is not None
+            ]
         else:
             messages.error(request, f"Failed to fetch asset categories from Snipe-IT: Status {categories_response.status_code}")
     except requests.exceptions.RequestException as e:
