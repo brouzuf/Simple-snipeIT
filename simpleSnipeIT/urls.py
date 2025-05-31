@@ -20,4 +20,5 @@ from django.urls import path, include # Corrected import
 urlpatterns = [
     path("", include("userCheckIO.urls")), # Corrected path
     path('admin/', admin.site.urls),
+    path('i18n/', include('django.conf.urls.i18n')),
 ]
