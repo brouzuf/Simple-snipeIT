@@ -9,6 +9,7 @@ from .decorators import admin_required
 from .models import AssetCategoryConfiguration
 from .utils import get_nested_value # Import the helper function
 
+
 # Replace with your Snipe-IT API URL and token
 API_URL = settings.SNIPEIT_API_URL
 API_TOKEN = settings.SNIPEIT_API_TOKEN
@@ -240,6 +241,7 @@ def assign_asset_to_user_view(request, user_id):
 
     # Fetch all asset-type categories from Snipe-IT for the form choices
     category_choices_for_form = []
+
     categories_url = f"{API_URL}categories?limit=500&sort=name&order=asc"
     try:
         get_only_headers = {key: value for key, value in headers.items() if key != "Content-Type"}
@@ -251,6 +253,7 @@ def assign_asset_to_user_view(request, user_id):
                 (str(cat['id']), cat['name']) for cat in snipeit_categories_data
                 if cat.get('category_type') == 'asset' and cat.get('id') is not None and cat.get('name') is not None
             ]
+
         else:
             messages.error(request, f"Could not fetch asset categories from Snipe-IT: Status {categories_response.status_code}")
     except requests.exceptions.RequestException as e:
@@ -258,7 +261,6 @@ def assign_asset_to_user_view(request, user_id):
 
     # If no categories could be fetched or none are of type 'asset', category_choices_for_form will be empty.
     # The form's __init__ method has a fallback for this: self.fields['category_id'].choices = [('', 'No categories available')]
-
     form = AssignAssetForm(request.POST or None, categories_choices=category_choices_for_form)
 
     if request.method == 'POST':
@@ -425,7 +427,6 @@ def unassign_asset_by_tag_view(request, user_id):
     headers = {
         "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
-        # Content-Type will be added for POST requests specifically
     }
 
     # Fetch user details for display and redirection context
@@ -519,7 +520,7 @@ def unassign_asset_by_tag_view(request, user_id):
 @admin_required
 def configure_asset_categories_view(request):
     headers = {
-        "Authorization": f"Bearer {API_TOKEN}", # Assuming API_TOKEN is globally defined or accessible
+        "Authorization": f"Bearer {API_TOKEN}",
         "Accept": "application/json",
     }
     category_choices_list = []
