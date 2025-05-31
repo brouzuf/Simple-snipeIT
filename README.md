@@ -56,7 +56,6 @@ This Django application provides a simplified interface for common asset managem
     *   `SECRET_KEY`: A strong, unique secret key for Django.
 
 5.  **Apply Database Migrations:**
-    (While this project doesn't have many custom models yet, it's good practice for Django apps)
     ```bash
     python manage.py migrate
     ```
