@@ -32,6 +32,9 @@
                 <table class="table is-striped is-hoverable is-fullwidth is-bordered">
                     <thead>
                         <tr>
+                            <th>
+                                Asset Name
+                            </th>
                             {% for header in column_headers %}
                                 <th>{{ header }}</th>
                             {% endfor %}
@@ -40,6 +43,9 @@
                     <tbody>
                         {% for asset in assets %}
                             <tr>
+                                <td>
+                                    <strong>{{ asset.raw.name }}</strong>
+                                </td>
                                 <td>
                                     {% if asset.assigned_to_name %}
                                         {{ asset.assigned_to_name }}
@@ -71,16 +77,4 @@
         {% endif %}
     </div>
 </section>
-
-<script>
-// JavaScript for notification dismissal
-document.addEventListener('DOMContentLoaded', () => {
-  (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
-    const $notification = $delete.parentNode;
-    $delete.addEventListener('click', () => {
-      $notification.parentNode.removeChild($notification);
-    });
-  });
-});
-</script>
 {% endblock %}

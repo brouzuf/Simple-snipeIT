@@ -41,28 +41,37 @@
                     Configure Asset Categories
                 </a>
                 {% endif %}
-                {% if request.session.snipeit_authenticated %}
                 <a href="{% url 'featured_asset_list' %}" class="navbar-item">
                     Featured Asset List
                 </a>
+            </div>
+            <div class="navbar-center">
+                {% if request.session.is_admin %}
+                <h1 class="title has-text-danger">CAUTION: ADMIN MODE</h1>
                 {% endif %}
             </div>
             <div class="navbar-end">
-                <a href="{% url 'admin_login' %}" class="navbar-item">
-                    Admin Login
+                {% if request.session.is_admin %}
+                <a href="{% url 'logout' %}" class="navbar-item">
+                    Logout
                 </a>
-                {# Later we might change 'login' to a more specific admin login URL if needed #}
+                {% endif %}
             </div>
         </div>
     </nav>
     <section class="section">
         <div class="container">
             {% if messages %}
-            <ul class="messages">
                 {% for message in messages %}
-                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                    {% if message.tags == 'error' %}
+                        <div class="notification is-danger is-light">
+                    {% else %}
+                        <div class="notification is-{{ message.tags }} is-light">
+                    {% endif %}
+                    <button class="delete is-medium"></button>
+                    {{ message }}
+                </div>
                 {% endfor %}
-            </ul>
             {% endif %}
             {% block content %}{% endblock %}
         </div>
@@ -76,5 +85,17 @@
             </p>
         </div>
     </footer>
+<script>
+// JavaScript for notification dismissal
+document.addEventListener('DOMContentLoaded', () => {
+  (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+    const $notification = $delete.parentNode;
+    $delete.addEventListener('click', () => {
+      $notification.parentNode.removeChild($notification);
+    });
+  });
+});
+</script>
+<script src="path/to/the/downloaded/folder/dist/bulma.js"></script>
 </body>
 </html>

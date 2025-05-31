@@ -6,10 +6,11 @@
     <h1 class="title">Assets for {{ user.name|default:user.username|default:'User' }}</h1>
     <p class="subtitle">(Employee Number: {{ employee_number }})</p>
 
-    <div class="box has-background-info-light">
+    <div class="box has-background-info">
         <form method="GET" action="{% url 'user_asset_view' %}">
             <input type="hidden" name="employee_number" value="{{ employee_number }}">
-            <label for="category_id">Filter by Category:</label>
+            <label for="category_id" class="label">Filter by Category:</label>
+            <div class="select is-large is-info">
             <select name="category_id" id="category_id">
                 <option value="">All Categories</option>
                 {% for category in categories %}
@@ -18,41 +19,63 @@
                     </option>
                 {% endfor %}
             </select>
-            <button type="submit">Filter</button>
+            </div>
+            <button type="submit" class="button is-large is-link">Filter</button>
         </form>
     </div>
-
+    {% if user.id %}
+        <div class="block level">
+            <div class="level-item has-text-centered">
+                <a class="button is-large is-primary is-2" href="{% url 'assign_asset' user_id=user.id %}">Assign New Asset</a>
+            </div>
+        </div>
+    {% endif %}
     <div class="block">
         {% if assets %}
-            <ul class="asset-list">
+            <div class="columns is-4">
             {% for asset in assets %}
-                <li>
-                    <div class="asset-details">
-                        <strong>{{ asset.name|default:"N/A" }}</strong> (Tag: {{ asset.asset_tag|default:"N/A" }})<br>
-                        Model: {{ asset.model.name|default:"N/A" }}<br>
-                        Category: {{ asset.category.name|default:"N/A" }}
+                <div class="column">
+                    <div class="card">
+                        <div class="card-content">
+                            <div class="media">
+                                <div class="media-content">
+                                    <p class="title is-4">{{ asset.name|default:"N/A" }}</p>
+                                    <p class="subtitle is-6">
+                                        Model: {{ asset.model.name|default:"N/A" }}
+                                        <br>
+                                        Category: {{ asset.category.name|default:"N/A" }}
+                                    </p>
+                                </div>
+                                <div class="media-right">
+                                <figure class="image is-48x48">
+                                    <img src="https://bulma.io/assets/images/placeholders/96x96.png"
+                                         alt="Placeholder image"
+                                    />
+                                </figure>
+                            </div>
+                            </div>
+                        </div>
+                        <footer class="card-footer">
+                            {# The user.id is from the user whose asset list is being viewed #}
+                            {# This link now goes to a page where an asset tag can be entered for unassignment #}
+                            {% if user.id %} {# Ensures we have a user context to pass #}
+                                <a href="{% url 'unassign_asset_by_tag' user_id=user.id %}" class="card-footer-item has-text-danger">Unassign Asset</a>
+                            {% endif %}
+                        </footer>
                     </div>
-                    <div class="asset-actions">
-                        {# The user.id is from the user whose asset list is being viewed #}
-                        {# This link now goes to a page where an asset tag can be entered for unassignment #}
-                        {% if user.id %} {# Ensures we have a user context to pass #}
-                        <a href="{% url 'unassign_asset_by_tag' user_id=user.id %}" class="unassign-btn">Unassign by Tag</a>
-                        {% endif %}
-                    </div>
-                </li>
+                </div>
             {% endfor %}
-            </ul>
+            </div>
         {% else %}
-            {% if selected_category_id %}
-                <p class="message info-message">No assets found in this category.</p>
-            {% else %}
-                <p class="message info-message">No assets currently assigned.</p>
-            {% endif %}
+                <p class="message is-info">No assets currently assigned.</p>
         {% endif %}
     </div>
-    {% if user.id %}
-        <div class="block">
-            <a class="button is-large is-primary" href="{% url 'assign_asset' user_id=user.id %}">Assign New Asset</a>
+    <hr>
+    {% if user.id and assets %}
+        <div class="block level">
+            <div class="level-item has-text-centered">
+                <a class="button is-large is-primary is-2" href="{% url 'assign_asset' user_id=user.id %}">Assign New Asset</a>
+            </div>
         </div>
     {% endif %}
 {% endblock %}

@@ -42,28 +42,14 @@ class CategoryFilterForm(forms.Form):
         # If not, it will retain the default [('', 'All Categories')]
 
 class AssignAssetForm(forms.Form):
-    category_id = forms.ChoiceField(
-        label="Asset Category",
-        required=True,
-        choices=[], # Will be populated in __init__
-        widget=forms.Select(attrs={'class': 'select'})
-    )
     asset_tag = forms.CharField(
         label="Asset Tag",
         required=True,
         max_length=100, # Assuming a reasonable max length for asset tags
         widget=forms.TextInput(attrs={'class': 'input',
+                                      'autofocus': 'autofocus',
                                       'placeholder': _('Enter asset tag to assign')}) # Corrected placeholder
     )
-
-    def __init__(self, *args, **kwargs):
-        categories_choices = kwargs.pop('categories_choices', None)
-        super().__init__(*args, **kwargs)
-        if categories_choices:
-            self.fields['category_id'].choices = [('', 'Select a category')] + categories_choices
-        else:
-            # Fallback if no categories are provided, though ideally the view always provides them.
-            self.fields['category_id'].choices = [('', 'No categories available')]
 
 class UnassignAssetForm(forms.Form):
     asset_tag = forms.CharField(
@@ -71,6 +57,7 @@ class UnassignAssetForm(forms.Form):
         max_length=100,
         required=True,
         widget=forms.TextInput(attrs={'class': 'input',
+                                      'autofocus': 'autofocus',
                                       'placeholder': _('Enter asset tag to unassign')})
     )
 

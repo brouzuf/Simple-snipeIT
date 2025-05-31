@@ -3,51 +3,38 @@
 {% block title %}Assign Asset to {{ user_to_assign.name|default:user_to_assign.username }}{% endblock %}
 
 {% block content %}
-    {# Specific styles for this page - consider moving to a static CSS file #}
-    <style>
-        form { margin-top: 20px; margin-bottom: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 5px; background-color: #f9f9f9; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; }
-        select { width: 100%; padding: 8px; margin-bottom: 20px; border-radius: 3px; border: 1px solid #ccc; box-sizing: border-box; }
-        button { padding: 10px 15px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
-        button:disabled { background-color: #ccc; }
-        hr { margin-top: 20px; margin-bottom: 20px; }
-        /* Links styling can be inherited or defined in base.html or here if specific changes are needed */
-        /* a { color: #007bff; text-decoration: none; } */
-        /* a:hover { text-decoration: underline; } */
-    </style>
-
-    <h1>Assign New Asset to {{ user_to_assign.name|default:user_to_assign.username }} (ID: {{ user_id }})</h1>
+    <h1 class="title">Assign New Asset to {{ user_to_assign.name|default:user_to_assign.username }}</h1>
 
     {% if messages %}
         {% for message in messages %}
             <div class="notification is-{{ message.tags }}">{{ message }}</div>
         {% endfor %}
     {% endif %}
-
-    <form method="post" action="{% url 'assign_asset' user_id=user_id %}">
-        {% csrf_token %}
-        {# Display non_field_errors if any (e.g., from messages framework if form itself doesn't handle them) #}
-        {% if form.non_field_errors %}
-            <div class="notification is-danger">
-                {% for error in form.non_field_errors %}
+    <div class="block">
+        <form method="post" action="{% url 'assign_asset' user_id=user_id %}">
+            <div class="field">
+                {% csrf_token %}
+                {# Display non_field_errors if any (e.g., from messages framework if form itself doesn't handle them) #}
+                {% if form.non_field_errors %}
+                <div class="notification is-danger">
+                    {% for error in form.non_field_errors %}
                     <p>{{ error }}</p>
-                {% endfor %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {# Render the asset_tag field using Django's form rendering #}
+                {# This will include the label, input, and any validation errors for the field #}
+                {# Using form.as_p or form.as_table for simplicity, or loop through fields for more control #}
+                {{ form.as_div }}
             </div>
-        {% endif %}
-
-        {# Render the asset_tag field using Django's form rendering #}
-        {# This will include the label, input, and any validation errors for the field #}
-        {# Using form.as_p or form.as_table for simplicity, or loop through fields for more control #}
-        {{ form.as_p }}
-
-        <button type="submit" class="button is-primary">Assign Asset</button>
-    </form>
-
-    <hr>
+            <div class="block level">
+                <div class="level-item has-text-centered">
+                    <button type="submit" class="button is-primary">Assign Asset</button>
+                </div>
+            </div>
+        </form>
+    </div>
     {% if user_to_assign.employee_number %}
     <a href="{% url 'user_asset_view' %}?employee_number={{ user_to_assign.employee_number }}">Back to {{ user_to_assign.name|default:user_to_assign.username }}'s Assets</a><br>
     {% endif %}
-    {# "Back to Home" and "Logout" links are in base.html menu #}
-    {# <a href="{% url 'index' %}">Back to Home</a> <br> #}
-    {# <a href="{% url 'logout' %}">Logout</a> #}
 {% endblock %}
