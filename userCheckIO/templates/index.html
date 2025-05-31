@@ -10,8 +10,10 @@
             {% csrf_token %}
             {{ form.as_div }}
         </div>
-        <div class="block">
-            <button type="submit" class="button is-large is-primary">View My Assets</button>
+        <div class="block level">
+            <div class="level-item has-text-centered">
+                <button type="submit" class="button is-large is-primary">View My Assets</button>
+            </div>
         </div>
     </form>
 {% endblock %}
