@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title|default:"Featured Asset List" }}{% endblock %}
+
+{% block content %}
+<section class="section">
+    <div class="container">
+        <h1 class="title is-2">{{ page_title|default:"Featured Asset List" }}</h1>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="notification {% if message.tags %}is-{{ message.tags }}{% else %}is-info{% endif %}">
+                    <button class="delete"></button>
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% if not featured_category_ids and not assets %}
+            {# This specific message is also handled in the view if featured_category_ids is empty. #}
+            {# Redundant here unless view logic changes. Kept for robustness. #}
+            <div class="notification is-warning">
+                <p>No featured categories are currently configured by the administrator. Please select categories in the admin settings (Configure Featured Categories) to see assets here.</p>
+            </div>
+        {% elif not assets and featured_category_ids %}
+             <div class="notification is-info">
+                <p>No assets found matching the configured featured categories.</p>
+            </div>
+        {% elif assets %}
+            <div class="table-container">
+                <table class="table is-striped is-hoverable is-fullwidth is-bordered">
+                    <thead>
+                        <tr>
+                            {% for header in column_headers %}
+                                <th>{{ header }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for asset in assets %}
+                            <tr>
+                                <td>
+                                    {% if asset.assigned_to_name %}
+                                        {{ asset.assigned_to_name }}
+                                        {% if asset.assigned_to_type %}
+                                            <span class="tag is-info is-light is-small">{{ asset.assigned_to_type }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="has-text-grey-light">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ asset.category_name|default:"" }}</td>
+                                {% for prop in asset.properties %}
+                                    <td>
+                                        {% if prop.value is None or prop.value == '' %}
+                                            <span class="has-text-grey-light">N/A</span>
+                                        {% else %}
+                                            {{ prop.value }}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            {# Fallback for any other unhandled state, though covered by view's initial message for no featured_category_ids #}
+            <p>No assets to display. This might be because no featured categories are set up or no assets match them.</p>
+        {% endif %}
+    </div>
+</section>
+
+<script>
+// JavaScript for notification dismissal
+document.addEventListener('DOMContentLoaded', () => {
+  (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+    const $notification = $delete.parentNode;
+    $delete.addEventListener('click', () => {
+      $notification.parentNode.removeChild($notification);
+    });
+  });
+});
+</script>
+{% endblock %}

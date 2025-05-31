@@ -36,6 +36,16 @@
                 <a href="{% url 'index' %}" class="navbar-item">
                     Home
                 </a>
+                {% if request.session.is_admin %}
+                <a href="{% url 'configure_asset_categories' %}" class="navbar-item">
+                    Configure Asset Categories
+                </a>
+                {% endif %}
+                {% if request.session.snipeit_authenticated %}
+                <a href="{% url 'featured_asset_list' %}" class="navbar-item">
+                    Featured Asset List
+                </a>
+                {% endif %}
             </div>
             <div class="navbar-end">
                 <a href="{% url 'admin_login' %}" class="navbar-item">

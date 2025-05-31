@@ -135,3 +135,19 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Snipe-IT API configuration
 SNIPEIT_API_URL = env('SNIPEIT_API_URL')
 SNIPEIT_API_TOKEN = env('SNIPEIT_API_TOKEN')
+SNIPEIT_ADMIN_GROUP_ID = env('SNIPEIT_ADMIN_GROUP_ID', default=None)
+
+# Custom settings for the new filtered asset list page
+# Defines which asset properties to display.
+# Uses dot notation for nested fields from the Snipe-IT API response.
+NEW_ASSET_LIST_DISPLAY_PROPERTIES = [
+    {'label': 'Asset Name', 'path': 'name'},
+    {'label': 'Asset Tag', 'path': 'asset_tag'},
+    {'label': 'Serial', 'path': 'serial'},
+    {'label': 'Model', 'path': 'model.name'},
+    {'label': 'Status', 'path': 'status_label.name'},
+    # Additional custom fields can be added here, e.g.
+    # {'label': 'Purchase Date', 'path': 'purchase_date.formatted'},
+    # {'label': 'Warranty', 'path': 'warranty_expires.formatted'},
+    # {'label': 'Location', 'path': 'location.name'},
+]
