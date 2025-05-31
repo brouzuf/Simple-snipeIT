@@ -93,10 +93,16 @@ The "Assigned To" and "Category" columns are displayed by default before these c
 
 ## Authentication and Authorization
 
-*   **User Authentication:** User "login" is based on validating the `SNIPEIT_API_TOKEN` (provided in `.env`) against the Snipe-IT API (`/users/me` endpoint). A successful validation sets an authenticated flag in the user's session.
-*   **Admin Privileges:** Specific views, such as "Configure Featured Categories" (`/configure_categories/`), require admin privileges.
-    *   Admin status is determined by checking if the authenticated user (associated with the application's `SNIPEIT_API_TOKEN`) is a member of the Snipe-IT user group whose ID is specified in the `SNIPEIT_ADMIN_GROUP_ID` environment variable.
-    *   The admin status flag (`is_admin`) is stored in the session upon successful login if the user meets the criteria.
-*   **Logout:** The "Logout" functionality clears relevant session data, including authentication and admin status flags, effectively revoking access to protected views and admin features.
+*   **System Authentication:** The application uses a global `SNIPEIT_API_TOKEN` (set in the `.env` file) for its general operations that require API access. The "Login" page (`/admin_login/`) primarily serves to validate this global token against the Snipe-IT API (e.g., by fetching `/users/me`). A successful validation establishes a basic authenticated session for the application (`request.session['snipeit_authenticated'] = True`). This initial system login explicitly sets admin privileges to false (`request.session['is_admin'] = False`).
+
+*   **Determining Admin Privileges:**
+    *   Admin status (`request.session['is_admin']`) for the current browser session is determined *after* system authentication, specifically when a user's details are viewed via the employee number lookup (typically on the main page, leading to the `user_asset_view`).
+    *   When an employee's record is successfully fetched, the application checks if that specific employee is a member of the Snipe-IT user group whose ID is defined in the `SNIPEIT_ADMIN_GROUP_ID` environment variable.
+    *   If the looked-up employee belongs to this designated admin group, the `request.session['is_admin']` flag is set to `True`. Information about the employee who triggered admin rights is stored in `request.session['admin_granting_employee_info']`.
+    *   If the looked-up employee is not in the admin group, or if the employee lookup fails, `request.session['is_admin']` is set to `False`, and any stored `admin_granting_employee_info` is cleared.
+
+*   **Accessing Admin Areas:** Admin-only sections, such as the "Configure Featured Categories" page (`/configure_categories/`), are protected by a decorator that checks if `request.session.get('is_admin')` is `True`. Access is granted only if an admin employee has been successfully looked up in the current session.
+
+*   **Logout:** The "Logout" functionality (`/logout/`) clears all relevant session data, including `snipeit_authenticated`, `is_admin`, and `admin_granting_employee_info`. This effectively revokes both system authentication and any admin privileges for the browser session, requiring a new "Login" and subsequent admin employee lookup to regain admin access.
 
 ```

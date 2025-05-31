@@ -33,46 +33,41 @@ def login_view(request):
             response = requests.get(me_url, headers=headers, timeout=10)
             if response.status_code == 200:
                 # Authentication successful
+                # System Authentication successful based on API token validity
                 request.session['snipeit_authenticated'] = True
                 request.session['snipeit_api_token'] = API_TOKEN # Store token if needed for other requests
+                request.session['is_admin'] = False # Explicitly set to False on system login
 
-                user_details = response.json()
-                user_id = user_details.get('id')
-                admin_group_id_str = str(settings.SNIPEIT_ADMIN_GROUP_ID) if settings.SNIPEIT_ADMIN_GROUP_ID else None
+                # Remove admin_granting_employee_info if it exists from a previous session
+                if 'admin_granting_employee_info' in request.session:
+                    del request.session['admin_granting_employee_info']
 
-                request.session['is_admin'] = False # Default to not admin
-
-                if user_id and admin_group_id_str:
-                    # Assuming user_details contains group information directly or need to fetch separately.
-                    # For this implementation, we'll check a 'groups' field in user_details.
-                    # This structure is common: user_details = {"id": 123, ..., "groups": {"total": 1, "rows": [{"id": 1, "name": "Admins"}]} }
-                    # Or sometimes groups are directly an array: "groups": [{"id": 1, "name": "Admins"}]
-
-                    user_groups = user_details.get('groups') # This could be a dict with 'rows' or a list
-
-                    if isinstance(user_groups, dict) and 'rows' in user_groups:
-                        groups_list = user_groups.get('rows', [])
-                    elif isinstance(user_groups, list):
-                        groups_list = user_groups
-                    else:
-                        groups_list = []
-
-                    for group in groups_list:
-                        if str(group.get('id')) == admin_group_id_str:
-                            request.session['is_admin'] = True
-                            break
-
-                messages.success(request, "Login successful.") # Optional: Add a success message
+                messages.success(request, "System login successful. Admin status will be determined by employee lookup.")
                 return redirect('index') # Redirect to the main index page
             else:
-                # Authentication failed
-                # error_message = f"Snipe-IT API authentication failed. Status: {response.status_code} - {response.text}"
-                # Using Django messages for error feedback on login page itself.
-                messages.error(request, f"Snipe-IT API authentication failed. Status: {response.status_code} - {response.text}")
+                # System Authentication failed
+                if 'snipeit_authenticated' in request.session:
+                    del request.session['snipeit_authenticated']
+                if 'snipeit_api_token' in request.session:
+                    del request.session['snipeit_api_token']
+                if 'is_admin' in request.session:
+                    del request.session['is_admin']
+                if 'admin_granting_employee_info' in request.session:
+                    del request.session['admin_granting_employee_info']
+
+                messages.error(request, f"System API token authentication failed. Status: {response.status_code} - {response.text}")
                 return render(request, 'login.html', {'form': form}) # Re-render login form with error
         except requests.exceptions.RequestException as e:
-            # error_message = f"Error connecting to Snipe-IT API: {e}"
-            messages.error(request, f"Error connecting to Snipe-IT API: {e}")
+            if 'snipeit_authenticated' in request.session:
+                del request.session['snipeit_authenticated']
+            if 'snipeit_api_token' in request.session:
+                del request.session['snipeit_api_token']
+            if 'is_admin' in request.session:
+                del request.session['is_admin']
+            if 'admin_granting_employee_info' in request.session:
+                del request.session['admin_granting_employee_info']
+
+            messages.error(request, f"Error connecting to Snipe-IT API during system login: {e}")
             return render(request, 'login.html', {'form': form}) # Re-render login form with error
     
     # For a GET request, just show the login page with the form
@@ -149,6 +144,28 @@ def user_asset_view(request):
     user = get_user_by_employee_number(employee_number)
 
     if user and 'id' in user:
+        # Determine if the fetched user is an admin based on their group membership
+        employee_is_determined_to_be_admin = False
+        admin_group_id_setting = str(settings.SNIPEIT_ADMIN_GROUP_ID) if settings.SNIPEIT_ADMIN_GROUP_ID else None
+
+        if admin_group_id_setting:
+            user_groups_data = user.get('groups', {}) # This is usually like {"total": x, "rows": [...]}
+            user_groups_list = user_groups_data.get('rows', [])
+            for group_dict in user_groups_list:
+                if str(group_dict.get('id')) == admin_group_id_setting:
+                    employee_is_determined_to_be_admin = True
+                    break
+
+        request.session['is_admin'] = employee_is_determined_to_be_admin
+        if employee_is_determined_to_be_admin:
+            request.session['admin_granting_employee_info'] = {
+                'id': user.get('id'),
+                'name': user.get('name'),
+                'employee_number': user.get('employee_num')
+            }
+        elif 'admin_granting_employee_info' in request.session:
+            del request.session['admin_granting_employee_info']
+
         user_id = user['id']
         assets_data = []
         categories_data = []
@@ -207,6 +224,10 @@ def user_asset_view(request):
         return render(request, 'asset_list.html', context)
     else:
         messages.error(request, f"Employee number '{employee_number}' not found.")
+        # If user not found, ensure any admin status possibly set by a previous lookup is cleared
+        request.session['is_admin'] = False
+        if 'admin_granting_employee_info' in request.session:
+            del request.session['admin_granting_employee_info']
         return redirect('index')
 
 def logout_view(request):
@@ -216,6 +237,8 @@ def logout_view(request):
         del request.session['snipeit_api_token']
     if 'is_admin' in request.session: # Explicitly clear is_admin
         del request.session['is_admin']
+    if 'admin_granting_employee_info' in request.session: # Ensure this specific key is cleared
+        del request.session['admin_granting_employee_info']
 
     messages.info(request, "You have been successfully logged out.")
     return redirect('index') # Or 'login' if preferred
