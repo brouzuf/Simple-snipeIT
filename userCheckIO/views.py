@@ -149,7 +149,7 @@ def user_asset_view(request):
         admin_group_id_setting = str(settings.SNIPEIT_ADMIN_GROUP_ID) if settings.SNIPEIT_ADMIN_GROUP_ID else None
 
         if admin_group_id_setting:
-            user_groups_data = user.get('groups', {}) # This is usually like {"total": x, "rows": [...]}
+            user_groups_data = user.get('groups') or {} # Ensure user_groups_data is a dict if groups is None
             user_groups_list = user_groups_data.get('rows', [])
             for group_dict in user_groups_list:
                 if str(group_dict.get('id')) == admin_group_id_setting:
