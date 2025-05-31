@@ -6,6 +6,7 @@ urlpatterns = [
     path("admin_login/", views.login_view, name="admin_login"),
     path("logout/", views.logout_view, name="logout"), 
     path("user_assets/", views.user_asset_view, name="user_asset_view"),
+    path("assets/featured/", views.filtered_asset_list_view, name="featured_asset_list"),
     # URLs for assign/unassign actions
     path("user/<int:user_id>/assign/", views.assign_asset_to_user_view, name="assign_asset"),
     path("asset/<int:asset_id>/unassign/", views.unassign_asset_from_user_view, name="unassign_asset"), # Kept for direct unassignment if still used

@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Configure Asset Category Assignment Rules{% endblock %}
+{% block title %}Configure Featured Categories{% endblock %}
 
 {% block content %}
 <section class="section">
     <div class="container">
-        <h1 class="title is-2">Configure Asset Category Assignment</h1>
-        <p class="subtitle">Define how users interact with asset categories when assigning assets.</p>
+        <h1 class="title is-2">Configure Featured Categories</h1>
+        <p class="subtitle">Select categories to be highlighted or used for special asset lists/reports.</p>
 
         {% if messages %}
             {% for message in messages %}
@@ -20,21 +20,8 @@
         <form method="post" novalidate>
             {% csrf_token %}
 
-            <div class="field">
-                <label class="label">{{ form.mode.label }}</label>
-                <div class="control">
-                    {{ form.mode }}
-                </div>
-                {% if form.mode.help_text %}
-                    <p class="help">{{ form.mode.help_text }}</p>
-                {% endif %}
-                {% for error in form.mode.errors %}
-                    <p class="help is-danger">{{ error }}</p>
-                {% endfor %}
-            </div>
-
             <div class="field" id="allowed_categories_field">
-                <label class="label">{{ form.allowed_categories.label }}</label>
+                <label class="label">{{ form.allowed_categories.label_tag }}</label>
                 <div class="control">
                     <div class="select is-multiple">
                         {# Manual loop for better control over checkbox layout if needed, or just {{ form.allowed_categories }} #}
@@ -45,9 +32,9 @@
                 {# Check if the choices list is effectively empty (only contains the placeholder) #}
                 {% if form.allowed_categories.field.choices|length == 1 and form.allowed_categories.field.choices.0.0 == "" %}
                     <p class="help is-warning" style="margin-top: 10px;">
-                        <strong>No categories available to configure.</strong> This could be due to several reasons:
+                        <strong>No categories available to select.</strong> This could be due to several reasons:
                         <ul style="list-style-type: disc; margin-left: 20px; margin-top: 5px;">
-                            <li>There are no categories of type 'asset' defined in your Snipe-IT instance. This application specifically looks for categories suitable for assigning to assets (e.g., hardware, devices).</li>
+                            <li>There are no categories defined in your Snipe-IT instance that could be fetched.</li>
                             <li>The API token used by this application may not have permissions to view categories in Snipe-IT.</li>
                             <li>There might have been an issue connecting to the Snipe-IT API to fetch categories (check for other error messages that may have appeared at the top of the page).</li>
                         </ul>
@@ -67,35 +54,10 @@
 
             <div class="field is-grouped">
                 <div class="control">
-                    <button type="submit" class="button is-primary">Save Configuration</button>
+                    <button type="submit" class="button is-primary">Save Featured List</button>
                 </div>
             </div>
         </form>
     </div>
 </section>
-
-{# Basic JavaScript to toggle visibility of allowed_categories based on mode selection #}
-{# This could be moved to a static JS file and made more robust later #}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const modeRadios = document.querySelectorAll('input[name="mode"]');
-    const allowedCategoriesField = document.getElementById('allowed_categories_field');
-
-    function toggleAllowedCategoriesField() {
-        const selectedMode = document.querySelector('input[name="mode"]:checked');
-        if (selectedMode && selectedMode.value === 'fixed') {
-            allowedCategoriesField.style.display = '';
-        } else {
-            allowedCategoriesField.style.display = 'none';
-        }
-    }
-
-    modeRadios.forEach(radio => {
-        radio.addEventListener('change', toggleAllowedCategoriesField);
-    });
-
-    // Initial check on page load
-    toggleAllowedCategoriesField();
-});
-</script>
 {% endblock %}

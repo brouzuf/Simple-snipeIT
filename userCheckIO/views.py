@@ -7,6 +7,8 @@ from django.contrib import messages # Added for Django messaging framework
 from .forms import LoginForm, EmployeeNumberForm, AssignAssetForm, UnassignAssetForm, CategoryConfigForm
 from .decorators import admin_required
 from .models import AssetCategoryConfiguration
+from .utils import get_nested_value # Import the helper function
+
 
 # Replace with your Snipe-IT API URL and token
 API_URL = settings.SNIPEIT_API_URL
@@ -237,17 +239,8 @@ def assign_asset_to_user_view(request, user_id):
         messages.error(request, f"Error fetching user details for ID {user_id}: {e}")
         return redirect('index')
 
-    # Load Asset Category Configuration from Database
-    db_config = AssetCategoryConfiguration.load()
-    current_assignment_mode = db_config.mode
-    # allowed_category_ids_from_db are integers
-    allowed_category_ids_from_db = set(db_config.allowed_category_ids if db_config.allowed_category_ids else [])
-
-    # Fetch all asset-type categories from Snipe-IT to populate choices
-    # These are [(id, name), ...] where id is an integer from Snipe-IT
-    all_snipeit_asset_categories = []
-    category_choices_for_form = [] # This will be passed to the form
-    allowed_categories_for_display = [] # For template context if mode is 'fixed'
+    # Fetch all asset-type categories from Snipe-IT for the form choices
+    category_choices_for_form = []
 
     categories_url = f"{API_URL}categories?limit=500&sort=name&order=asc"
     try:
@@ -255,32 +248,19 @@ def assign_asset_to_user_view(request, user_id):
         categories_response = requests.get(categories_url, headers=get_only_headers, timeout=10)
         if categories_response.status_code == 200:
             snipeit_categories_data = categories_response.json().get('rows', [])
-            # Filter for asset type categories and ensure they have id and name
-            all_snipeit_asset_categories = [
-                (cat['id'], cat['name']) for cat in snipeit_categories_data
+            # Filter for asset type categories and ensure they have id and name, convert ID to string for form
+            category_choices_for_form = [
+                (str(cat['id']), cat['name']) for cat in snipeit_categories_data
                 if cat.get('category_type') == 'asset' and cat.get('id') is not None and cat.get('name') is not None
             ]
 
-            if current_assignment_mode == 'fixed':
-                if not allowed_category_ids_from_db:
-                    messages.warning(request, "Asset assignment is in 'fixed' category mode, but no categories are configured as allowed in the database. Please contact an administrator.")
-                    # category_choices_for_form will remain empty
-                else:
-                    for cat_id, cat_name in all_snipeit_asset_categories:
-                        # cat_id from Snipe-IT is an integer, compare with integers from DB config
-                        if cat_id in allowed_category_ids_from_db:
-                            category_choices_for_form.append((str(cat_id), cat_name)) # Form choices need string ID
-                            allowed_categories_for_display.append({'id': str(cat_id), 'name': cat_name})
-                    if not category_choices_for_form and allowed_category_ids_from_db: # Config had IDs, but none matched valid Snipe-IT asset categories
-                         messages.warning(request, "Asset assignment is in 'fixed' category mode. While there are categories configured, none of them match currently available asset categories from Snipe-IT. Please check configuration or Snipe-IT categories.")
-            else: # mode == 'select'
-                category_choices_for_form = [(str(cat_id), cat_name) for cat_id, cat_name in all_snipeit_asset_categories]
         else:
             messages.error(request, f"Could not fetch asset categories from Snipe-IT: Status {categories_response.status_code}")
     except requests.exceptions.RequestException as e:
         messages.error(request, f"Error connecting to Snipe-IT to fetch categories: {e}")
 
-    # Ensure form choices IDs are strings
+    # If no categories could be fetched or none are of type 'asset', category_choices_for_form will be empty.
+    # The form's __init__ method has a fallback for this: self.fields['category_id'].choices = [('', 'No categories available')]
     form = AssignAssetForm(request.POST or None, categories_choices=category_choices_for_form)
 
     if request.method == 'POST':
@@ -373,8 +353,7 @@ def assign_asset_to_user_view(request, user_id):
         'form': form, # Pass the form instance (empty or with POST data and errors)
         'user_to_assign': user_to_assign_data,
         'user_id': user_id,
-        'current_assignment_mode': current_assignment_mode,
-        'allowed_categories_for_display': allowed_categories_for_display if current_assignment_mode == 'fixed' else []
+        # current_assignment_mode and allowed_categories_for_display are removed from context
     }
     return render(request, 'assign_asset.html', context)
 
@@ -566,25 +545,94 @@ def configure_asset_categories_view(request):
     if request.method == 'POST':
         form = CategoryConfigForm(request.POST, categories_choices=category_choices_list)
         if form.is_valid():
-            mode = form.cleaned_data['mode']
             allowed_cats_str = form.cleaned_data.get('allowed_categories', [])
 
-            if mode == 'fixed' and not allowed_cats_str:
-                form.add_error('allowed_categories', 'Please select at least one category when in "fixed" mode.')
-                # Fall through to re-render form with this error (form object already has errors)
-            else:
-                config_obj.mode = mode
-                # Ensure IDs are stored as integers in the JSONField
-                config_obj.allowed_category_ids = [int(cat_id) for cat_id in allowed_cats_str]
-                config_obj.save()
-                messages.success(request, "Asset category configuration saved successfully.")
-                return redirect('configure_asset_categories')
+            # The mode field is no longer part of the form or this view's direct logic.
+            # We only save allowed_category_ids. The mode in DB remains untouched by this view.
+            config_obj.allowed_category_ids = [int(cat_id) for cat_id in allowed_cats_str]
+            config_obj.save()
+            messages.success(request, "Featured category list saved successfully.")
+            return redirect('configure_asset_categories')
     else:  # GET request
         initial_data = {
-            'mode': config_obj.mode,
             # Ensure allowed_category_ids from DB are strings for form MultipleChoiceField initialization
             'allowed_categories': [str(cat_id) for cat_id in config_obj.allowed_category_ids]
         }
         form = CategoryConfigForm(initial=initial_data, categories_choices=category_choices_list)
 
     return render(request, 'configure_asset_categories.html', {'form': form})
+
+
+def filtered_asset_list_view(request):
+    if not request.session.get('snipeit_authenticated'):
+        # Redirect to login if not authenticated, preserving the intended path
+        return redirect(f"{reverse('login')}?next={request.path}")
+
+    config = AssetCategoryConfiguration.load()
+    featured_category_ids = config.allowed_category_ids # These are integers
+    display_properties_config = settings.NEW_ASSET_LIST_DISPLAY_PROPERTIES
+
+    all_raw_assets_from_api = []
+
+    if not featured_category_ids:
+        messages.info(request, "No featured categories have been configured by the administrator. Please select categories in the 'Configure Featured Categories' admin page to see assets here.")
+    else:
+        headers = {
+            "Authorization": f"Bearer {API_TOKEN}",
+            "Accept": "application/json",
+        }
+        for category_id in featured_category_ids:
+            # Ensure category_id is an integer for the API call
+            assets_url = f"{API_URL}hardware?category_id={int(category_id)}&limit=200&sort=name&order=asc"
+            try:
+                response = requests.get(assets_url, headers=headers, timeout=15)
+                if response.status_code == 200:
+                    assets_data = response.json().get('rows', [])
+                    all_raw_assets_from_api.extend(assets_data)
+                else:
+                    messages.error(request, f"Failed to fetch assets for category ID {category_id}. Snipe-IT API status: {response.status_code} - {response.text}")
+            except requests.exceptions.RequestException as e:
+                messages.error(request, f"Error connecting to Snipe-IT API for category ID {category_id}: {e}")
+
+    processed_assets_list = []
+    # Deduplicate assets based on ID, in case an asset is in multiple featured categories
+    # (though Snipe-IT typically assigns an asset to a single category)
+    seen_asset_ids = set()
+    unique_raw_assets = []
+    for asset_data in all_raw_assets_from_api:
+        asset_id = asset_data.get('id')
+        if asset_id and asset_id not in seen_asset_ids:
+            unique_raw_assets.append(asset_data)
+            seen_asset_ids.add(asset_id)
+
+    for asset_data in unique_raw_assets:
+        processed_asset = {'id': asset_data.get('id'), 'raw': asset_data} # Store raw for potential future use in template
+
+        assigned_to_info = asset_data.get('assigned_to')
+        if assigned_to_info and isinstance(assigned_to_info, dict):
+            processed_asset['assigned_to_name'] = assigned_to_info.get('name')
+            processed_asset['assigned_to_type'] = assigned_to_info.get('type')
+        else:
+            processed_asset['assigned_to_name'] = None
+            processed_asset['assigned_to_type'] = None
+
+        processed_asset['category_name'] = get_nested_value(asset_data, 'category.name')
+
+        processed_asset['properties'] = []
+        for prop_config in display_properties_config:
+            value = get_nested_value(asset_data, prop_config['path'])
+            processed_asset['properties'].append({
+                'label': prop_config['label'],
+                'value': value if value is not None else ''
+            })
+        processed_assets_list.append(processed_asset)
+
+    column_headers = ["Assigned To", "Category"] + [prop['label'] for prop in display_properties_config]
+
+    context = {
+        'assets': processed_assets_list,
+        'column_headers': column_headers,
+        'featured_category_ids': featured_category_ids, # For display or debugging if needed
+        'page_title': "Featured Assets by Category"
+    }
+    return render(request, 'filtered_asset_list.html', context)

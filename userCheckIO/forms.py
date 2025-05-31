@@ -75,21 +75,11 @@ class UnassignAssetForm(forms.Form):
     )
 
 class CategoryConfigForm(forms.Form):
-    CHOICES_MODE = [
-        ('select', 'Display category selector (user selects category during assignment)'),
-        ('fixed', 'Use fixed list of allowed categories (user does not select category during assignment)')
-    ]
-    mode = forms.ChoiceField(
-        choices=CHOICES_MODE,
-        widget=forms.RadioSelect,
-        label="Asset Category Assignment Mode",
-        help_text="Determines how asset categories are handled during asset assignment."
-    )
     allowed_categories = forms.MultipleChoiceField(
         widget=forms.CheckboxSelectMultiple,
-        required=False,
-        label="Allowed Asset Categories for 'Fixed' Mode",
-        help_text="If mode is 'fixed', only assets from these categories can be assigned using the simplified form. Select all that apply."
+        required=False, # An empty list is allowed
+        label=_("Featured Asset Categories"),
+        help_text=_("Select categories to be highlighted in special reports or views. An empty selection is valid.")
     )
 
     def __init__(self, *args, **kwargs):

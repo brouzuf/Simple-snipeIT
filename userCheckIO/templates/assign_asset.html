@@ -24,23 +24,6 @@
         {% endfor %}
     {% endif %}
 
-    {% if current_assignment_mode == 'fixed' %}
-    <div class="notification is-info is-light">
-        <p><strong>Note:</strong> Asset assignment is currently restricted by the administrator to specific categories. Please select from the available categories in the dropdown.</p>
-        {% if allowed_categories_for_display %}
-            <p>Allowed categories include:
-                <ul>
-                {% for cat in allowed_categories_for_display %}
-                    <li>{{ cat.name }} (ID: {{ cat.id }})</li>
-                {% endfor %}
-                </ul>
-            </p>
-        {% else %}
-            <p><em>However, no specific categories have been configured as allowed in this mode. You may not be able to assign assets. Please contact an administrator.</em></p>
-        {% endif %}
-    </div>
-    {% endif %}
-
     <form method="post" action="{% url 'assign_asset' user_id=user_id %}">
         {% csrf_token %}
         {# Display non_field_errors if any (e.g., from messages framework if form itself doesn't handle them) #}

@@ -41,6 +41,13 @@
                     Configure Asset Categories
                 </a>
                 {% endif %}
+                {% if request.session.snipeit_authenticated %}
+                    <a class="navbar-item">CAUTION: ADMIN MODE</a>
+                {% endif %}
+                <a href="{% url 'featured_asset_list' %}" class="navbar-item">
+                    Featured Asset List
+                </a>
+
             </div>
             <div class="navbar-end">
                 <a href="{% url 'admin_login' %}" class="navbar-item">
