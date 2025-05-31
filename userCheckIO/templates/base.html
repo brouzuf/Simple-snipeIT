@@ -18,16 +18,95 @@
             padding: 1.5rem 1.5rem 1.5rem; /* Reduced top and bottom padding */
             flex-shrink: 0; /* Prevents footer from shrinking if content is too large */
         }
-        .menu { background-color: #333; overflow: hidden; }
-        .menu a { float: left; display: block; color: white; text-align: center; padding: 14px 16px; text-decoration: none; }
-        .menu a:hover { background-color: #ddd; color: black; }
-        .content { padding: 20px; }
-        .messages { list-style-type: none; padding: 0; margin: 0 0 20px 0; }
-        .messages li { padding: 10px; margin-bottom: 10px; border-radius: 5px; color: #fff; }
-        .messages li.success { background-color: #28a745; }
-        .messages li.error { background-color: #dc3545; }
-        .messages li.info { background-color: #17a2b8; }
-        /* Add other message tags styling if needed */
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background-color: #121212;
+            color: #f5f5f5;
+        }
+        .dark-mode .navbar {
+            background-color: #1e1e1e;
+        }
+        .dark-mode .navbar-item,
+        .dark-mode .navbar-link {
+            color: #f5f5f5;
+        }
+        .dark-mode .navbar-item:hover,
+        .dark-mode .navbar-link:hover {
+            background-color: #333;
+            color: #fff;
+        }
+        .dark-mode .title,
+        .dark-mode .subtitle {
+            color: #f5f5f5;
+        }
+        .dark-mode .box {
+            background-color: #1e1e1e;
+            color: #f5f5f5;
+        }
+        .dark-mode .button.is-primary {
+            background-color: #00d1b2; /* Bulma primary color */
+            color: #000; /* Text color for primary button in dark mode */
+        }
+        .dark-mode .button.is-primary:hover {
+            background-color: #00b89c;
+        }
+        .dark-mode .button.is-light {
+            background-color: #444;
+            color: #f5f5f5;
+        }
+        .dark-mode .button.is-light:hover {
+            background-color: #555;
+        }
+        .dark-mode .input,
+        .dark-mode .textarea,
+        .dark-mode .select select {
+            background-color: #333;
+            border-color: #555;
+            color: #f5f5f5;
+        }
+        .dark-mode .input::placeholder,
+        .dark-mode .textarea::placeholder {
+            color: #aaa;
+        }
+        .dark-mode .footer {
+            background-color: #1e1e1e;
+            color: #f5f5f5;
+        }
+        .dark-mode .footer a {
+            color: #00d1b2; /* Bulma primary color for links in footer */
+        }
+        .dark-mode .notification.is-danger {
+            background-color: #721c24; /* Darker red */
+            color: #f8d7da;
+        }
+        .dark-mode .notification.is-success {
+            background-color: #155724; /* Darker green */
+            color: #d4edda;
+        }
+        .dark-mode .notification.is-info {
+            background-color: #0c5460; /* Darker blue/teal */
+            color: #d1ecf1;
+        }
+         .dark-mode .notification.is-warning {
+            background-color: #856404; /* Darker yellow */
+            color: #fff3cd;
+        }
+        .dark-mode a {
+            color: #00d1b2; /* Bulma primary color or a light blue */
+        }
+        .dark-mode a:hover {
+            color: #00f5d4; /* Lighter shade for hover */
+        }
+        .dark-mode .has-text-danger {
+            color: #f14668 !important; /* Bulma's danger color, ensuring it's light enough or overridden */
+        }
+        .dark-mode .has-text-success {
+            color: #48c774 !important; /* Bulma's success color */
+        }
+        /* Ensure select dropdown text is readable */
+        .dark-mode .select select option {
+            color: #000; /* Or a dark color that contrasts with select background, if needed */
+        }
     </style>
 </head>
 <body>
@@ -63,6 +142,7 @@
                 {% endif %}
             </div>
             <div class="navbar-end">
+                <a id="darkModeSwitch" class="navbar-item" onclick="toggleDarkMode()"></a>
                 <form action="{% url 'set_language' %}" method="post" class="navbar-item">
                     {% csrf_token %}
                     <input name="next" type="hidden" value="{{ request.get_full_path|slice:":-3" }}">
@@ -125,6 +205,43 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 </script>
-<script src="path/to/the/downloaded/folder/dist/bulma.js"></script>
+<script>
+    function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode');
+        const darkModeSwitch = document.getElementById('darkModeSwitch');
+        if (document.body.classList.contains('dark-mode')) {
+            localStorage.setItem('theme', 'dark');
+            if (darkModeSwitch) darkModeSwitch.textContent = '☀️';
+        } else {
+            localStorage.setItem('theme', 'light');
+            if (darkModeSwitch) darkModeSwitch.textContent = '🌙';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const darkModeSwitch = document.getElementById('darkModeSwitch');
+        const currentTheme = localStorage.getItem('theme');
+
+        if (currentTheme === 'dark') {
+            document.body.classList.add('dark-mode');
+            if (darkModeSwitch) darkModeSwitch.textContent = '☀️';
+        } else if (currentTheme === 'light') {
+            document.body.classList.remove('dark-mode');
+            if (darkModeSwitch) darkModeSwitch.textContent = '🌙';
+        } else {
+            // Default to light mode if no theme is set, and set switch accordingly
+            // Or, could check OS preference here if desired via (window.matchMedia('(prefers-color-scheme: dark)').matches)
+            if (darkModeSwitch) darkModeSwitch.textContent = '🌙';
+        }
+
+        // JavaScript for notification dismissal
+        (document.querySelectorAll('.notification .delete') || []).forEach(($delete) => {
+            const $notification = $delete.parentNode;
+            $delete.addEventListener('click', () => {
+                $notification.parentNode.removeChild($notification);
+            });
+        });
+    });
+</script>
 </body>
 </html>
